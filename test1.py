@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'test.ui'
+# Form implementation generated from reading ui file 'test1.ui'
 #
 # Created: Thu Feb  6 20:20:48 2014
-#      by: PyQt4 UI code generator 4.10.3
+#      by: Rui Zhao, The Chinese University of Hong Kong
+#          Email: rzhao@ee.cuhk.edu.hk
 #
 # WARNING! All changes made in this file will be lost!
+
 import os
 import sys
 import glob
@@ -155,7 +157,7 @@ class Ui_MainWindow(object):
         #fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../data')
         fpath = '../data/query'
         self.qFiles = sorted(glob.glob(str(fpath) + '/*.bmp'))
-        self.qNames = map(lambda x: os.path.basename(x), self.qFiles)
+        self.qNames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qFiles)
 
         self.index = 0
         self.query = QPixmap(self.qFiles[self.index])
@@ -171,10 +173,13 @@ class Ui_MainWindow(object):
         #fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../data')
         fpath = '../data/gallery'
         self.gFiles = sorted(glob.glob(str(fpath) + '/*.bmp'))
-        self.gNames = map(lambda x: os.path.basename(x), self.gFiles)
-        idx = range(len(self.gFiles))
-        np.random.shuffle(idx)
+        self.gNames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gFiles)
 
+        qid = self.gNames.index(self.qNames[self.index])
+
+        idx0 = np.setdiff1d(range(len(self.gFiles)), [qid])
+        idx = np.append(idx0[0:len(self.labelset)-1], qid)
+        #np.random.shuffle(idx.append(qid))
 
         for i in range(len(self.labelset)):
             image = QPixmap(self.gFiles[idx[i]])
@@ -183,7 +188,8 @@ class Ui_MainWindow(object):
     def slot_slic(self):
         '''
             perform SLIC superpixel segmentation
-            Input: QPixmap self.query
+            Input: 
+                    QPixmap self.query
             Output: 
                     ndarray self.npimg      - input image 
                     ndarray self.nplabel    - seg label
