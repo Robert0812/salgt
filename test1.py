@@ -53,7 +53,7 @@ class Ui_MainWindow(object):
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.label = CLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(180, 40, 270, 720))
+        self.label.setGeometry(QtCore.QRect(180, 30, 270, 720))
         self.label.setObjectName(_fromUtf8("label"))
         self.widget = QtGui.QWidget(self.centralwidget)
         self.widget.setGeometry(QtCore.QRect(10, 70, 102, 611))
@@ -87,7 +87,7 @@ class Ui_MainWindow(object):
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.labelset = []
         for i in range(4):
-            for j in range(7):
+            for j in range(8):
                 label_tmp = QtGui.QLabel(self.widget1)
                 label_tmp.setObjectName(_fromUtf8('label_{}'.format(i*7+j+2)))
                 self.labelset.append(label_tmp)
@@ -125,8 +125,8 @@ class Ui_MainWindow(object):
         self.pushButton_4.setText(_translate("MainWindow", "Next Image", None))
         self.pushButton_5.setText(_translate("MainWindow", "Exit", None))
         for i in range(4):
-            for j in range(7):
-                self.labelset[i*7+j].setText(_translate("MainWindow", "ImageLabel", None))
+            for j in range(8):
+                self.labelset[i*8+j].setText(_translate("MainWindow", "ImageLabel", None))
 
     def slot_click(self):
         cx = self.label.cx
@@ -174,8 +174,10 @@ class Ui_MainWindow(object):
 
     def slot_gallery(self):
         newDialog = QDialog();
-        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory")
+        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../data')
         files = sorted(glob.glob(str(fpath) + '/*.bmp'))
+        self.gfiles = map(lambda x: os.path.basename(x), files)
+        print self.gfiles
         for i in range(len(self.labelset)):
             image = QPixmap(files[i])
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
