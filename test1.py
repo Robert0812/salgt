@@ -6,8 +6,14 @@
 #      by: PyQt4 UI code generator 4.10.3
 #
 # WARNING! All changes made in this file will be lost!
+import os
 import sys
 import glob
+import slic
+import numpy as np
+from scipy.misc import imresize
+from qimage2ndarray import *
+import Image
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import * 
@@ -27,14 +33,27 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
+class CLabel(QLabel):
+
+    def __init__(self, parent):
+        QLabel.__init__(self, parent)
+
+    def mousePressEvent(self, event):
+        self.cx = event.pos().x()
+        self.cy = event.pos().y()
+        self.emit(SIGNAL('clicked()'))
+         
+        event.accept()
+
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
         MainWindow.resize(1269, 794)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
-        self.label = QtGui.QLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(130, 40, 361, 691))
+        self.label = CLabel(self.centralwidget)
+        self.label.setGeometry(QtCore.QRect(180, 40, 270, 720))
         self.label.setObjectName(_fromUtf8("label"))
         self.widget = QtGui.QWidget(self.centralwidget)
         self.widget.setGeometry(QtCore.QRect(10, 70, 102, 611))
@@ -86,7 +105,15 @@ class Ui_MainWindow(object):
         QtCore.QObject.connect(self.pushButton_3, QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
         QtCore.QObject.connect(self.pushButton_4, QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         QtCore.QObject.connect(self.pushButton_6, QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_gallery)
+        QtCore.QObject.connect(self.label, SIGNAL('clicked()'), self.slot_click)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+        files = sorted(glob.glob('../data/*.bmp'))
+
+        self.index = 0
+        self.image = QPixmap(files[self.index])
+        self.label.setPixmap(self.image.scaled(self.label.size(), Qt.KeepAspectRatio))
+        self.mergeSegs = []
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow", None))
@@ -101,14 +128,49 @@ class Ui_MainWindow(object):
             for j in range(7):
                 self.labelset[i*7+j].setText(_translate("MainWindow", "ImageLabel", None))
 
+    def slot_click(self):
+        cx = self.label.cx
+        cy = self.label.cy
+        mb = self.showb
+        # update image label map
+        if self.sliclabel[cy, cx] not in self.mergeSegs:
+            self.mergeSegs.append(self.sliclabel[cy, cx]) 
+            
+            for i in range(1, 3):
+                tmp = mb[:, :, i]
+                tmp[self.sliclabel == self.sliclabel[cy, cx]] = 0
+                mb[:, :, i] = tmp
+        else:
+            self.mergeSegs.pop(self.mergeSegs.index(self.sliclabel[cy, cx]))
+            for i in range(1, 3):
+                tmp = mb[:, :, i]
+                initb = self.initb[:, :, i]
+                idx = self.sliclabel == self.sliclabel[cy, cx]
+                
+                tmp[idx] = initb[idx]
+                mb[:, :, i] = tmp
+
+            #test = Image.fromarray(initb)
+            #test.show()
+        self.showb = mb
+        print self.mergeSegs
+
+        # numpy to QImage
+        qimage_slic = array2qimage(mb)
+        # QImage to QPixmap
+        pixmap = QPixmap.fromImage(qimage_slic)
+        self.label.setPixmap(pixmap.scaled(self.label.size(), Qt.KeepAspectRatio))
+
     def slot_load(self):
         newDialog = QDialog();
         fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory")
-        files = sorted(glob.glob(str(fpath) + '/*.bmp'))
+        self.files = sorted(glob.glob(str(fpath) + '/*.bmp'))
 
         self.index = 0
-        self.image = QPixmap(files[self.index])
+        self.image = QPixmap(self.files[self.index])
         self.label.setPixmap(self.image.scaled(self.label.size(), Qt.KeepAspectRatio))
+        self.slot_slic()
+        self.mergeSegs = []
 
     def slot_gallery(self):
         newDialog = QDialog();
@@ -118,16 +180,37 @@ class Ui_MainWindow(object):
             image = QPixmap(files[i])
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
 
-
     def slot_slic(self):
-        print 'slic'
-
+        w = self.image.width()
+        h = self.image.height()
+        # QPixmap to QImage
+        qimage = self.image.toImage()
+        # QImage to numpy
+        imgarr = rgb_view(qimage)
+        #imgarr = qimage2numpy(qimage)
+        a = imresize(imgarr, (self.label.size().height(), self.label.size().width()), interp='bicubic')
+        slic_label = slic.slic_n(a, 200, 10)
+        contours = slic.contours(a, slic_label, 10)
+        b = contours[:, :, :-1]
+        # numpy to QImage
+        qimage_slic = array2qimage(b)
+        # QImage to QPixmap
+        pixmap = QPixmap.fromImage(qimage_slic)
+        self.label.setPixmap(pixmap.scaled(self.label.size(), Qt.KeepAspectRatio))
+        self.img = a
+        self.sliclabel = slic_label
+        self.initb = b
+        self.showb = b.copy()
 
     def slot_merge(self):
         print 'merge'
 
     def slot_next(self):
-        print 'next'
+        self.index += 1
+        if self.index < len(self.files):
+            self.image = QPixmap(self.files[self.index])
+            self.label.setPixmap(self.image.scaled(self.label.size(), Qt.KeepAspectRatio))
+            self.slot_slic()
 
 def main():
 
