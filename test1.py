@@ -38,6 +38,7 @@ class CLabel(QLabel):
 
     def __init__(self, parent):
         QLabel.__init__(self, parent)
+        self.setMouseTracking(True)
 
     def mousePressEvent(self, event):
         self.cx = event.pos().x()
@@ -179,7 +180,7 @@ class Ui_MainWindow(object):
 
         idx0 = np.setdiff1d(range(len(self.gFiles)), [qid])
         idx = np.append(idx0[0:len(self.labelset)-1], qid)
-        #np.random.shuffle(idx.append(qid))
+        np.random.shuffle(idx)
 
         for i in range(len(self.labelset)):
             image = QPixmap(self.gFiles[idx[i]])
@@ -204,7 +205,7 @@ class Ui_MainWindow(object):
         imgarr = rgb_view(qimage)
         #imgarr = qimage2numpy(qimage)
         self.npimg = imresize(imgarr, (self.label.size().height(), self.label.size().width()), interp='bicubic')
-        self.nplabel = slic.slic_n(self.npimg, 200, 10)
+        self.nplabel = slic.slic_n(self.npimg, 100, 10)
         contours = slic.contours(self.npimg, self.nplabel, 10)
         self.npdraw = contours[:, :, :-1]
         self.npdraw0 = self.npdraw.copy()
