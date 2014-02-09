@@ -94,10 +94,10 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
-        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
-        QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
-        QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_previous)
-        QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
+        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
+        QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_previous)
+        QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
+        QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
         for i in range(len(self.label)):
             QObject.connect(self.label[i], SIGNAL('clicked()'), lambda pyr = i: self.slot_click(pyr))
 
@@ -156,11 +156,11 @@ class Ui_MainWindow(object):
         for i in range(len(self.label)):
             self.label[i].setText(_translate("MainWindow", "Image{}".format(i), None))
 
-        self.pushButton[0].setText(_translate("MainWindow", "Reset", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Reset", None))
-        self.pushButton[2].setText(_translate("MainWindow", "Merge Segs", None))
-        self.pushButton[3].setText(_translate("MainWindow", "Previous", None))
-        self.pushButton[4].setText(_translate("MainWindow", "Next", None))
+        self.pushButton[0].setText(_translate("MainWindow", "NaN", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Merge", None))
+        self.pushButton[2].setText(_translate("MainWindow", "Previous", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Next", None))
+        self.pushButton[4].setText(_translate("MainWindow", "Reset", None))
         self.pushButton[5].setText(_translate("MainWindow", "Exit", None))
 
     def slot_click(self, pyr):
