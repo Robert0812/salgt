@@ -74,7 +74,7 @@ class Ui_MainWindow(object):
             self.verticalLayout.addWidget(self.pushButton[-1])
 
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(180, 30, 600, 711))
+        self.widget.move(180, 30)
         self.widget.setObjectName(_fromUtf8("widget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.widget)
         self.horizontalLayout.setMargin(0)
@@ -93,11 +93,11 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
-        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
+        QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
         QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
-        QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
-        QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_previous)
+        QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_previous)
+        QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         for i in range(len(self.label)):
             QObject.connect(self.label[i], SIGNAL('clicked()'), lambda pyr = i: self.slot_click(pyr))
 
@@ -107,34 +107,48 @@ class Ui_MainWindow(object):
         default_query = '../data/query'
         self.qfiles = sorted(glob.glob(default_query+'/*.bmp'))
 
-        self.index = 0
-        self.query = QPixmap(self.qfiles[self.index])
         self.w = self.label[0].size().width()
         self.h = self.label[0].size().height()
         self.npyr = len(self.label)
         self.mergeSegs = [[] for i in range(self.npyr)]
-        self.auxlabel = np.zeros((self.h, self.w), dtype=np.uint8)
 
         # load label data
         default_file = '../parts.pkl'
-        if os.path.isfile(default_file):
-            f = open(default_file, 'rb')
+
+        self.save_path = default_file
+        if os.path.isfile(self.save_path):
+            # labeled data exists
+
+            f = open(self.save_path, 'rb')
             self.data = cPickle.load(f)
             f.close()
-        else:
-            f = open(default_file, 'wb')
-            self.data = {}
-            self.data['index'] = 0
-            self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.uint8) for i in range(len(self.qfiles))]
-            self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
-            cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
-            f.close()
+            self.index = self.data['index']
 
-        # compute the initial label map given self.query
+            # initialize labeled data {label0, auxlabel}
+            self.label0 = self.data['labels'][self.index]
+            self.query = QPixmap(self.qfiles[self.index])
+            qimage = self.query.toImage()
+            imgarr = rgb_view(qimage)
+            self.npimg = imresize(imgarr, (self.h, self.w), interp='bicubic')
+            self.auxlabel = slic.slic_n(self.npimg, 50, 10)
+
+        else:
+            # no previous annotation available
+            self.data = {}
+            self.data['index'] = self.index
+            self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
+            self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
+            self.data['flags'] = np.zeros(len(self.qfiles))
+            
+            self.index = 0
+            self.query = QPixmap(self.qfiles[self.index])
+
+            # compute the initial label map given self.query
+            for i in range(self.npyr):
+                self.slot_slic(i)
+
         for i in range(self.npyr):
-            self.slot_slic(i)
-        
-        self.label0 = self.data['labels'][self.index] 
+            self.show_label(i)
 
 
     def retranslateUi(self, MainWindow):
@@ -142,11 +156,11 @@ class Ui_MainWindow(object):
         for i in range(len(self.label)):
             self.label[i].setText(_translate("MainWindow", "Image{}".format(i), None))
 
-        self.pushButton[0].setText(_translate("MainWindow", "Load Query", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Load Gallery", None))
+        self.pushButton[0].setText(_translate("MainWindow", "Reset", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Reset", None))
         self.pushButton[2].setText(_translate("MainWindow", "Merge Segs", None))
-        self.pushButton[3].setText(_translate("MainWindow", "Next", None))
-        self.pushButton[4].setText(_translate("MainWindow", "Previous", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Previous", None))
+        self.pushButton[4].setText(_translate("MainWindow", "Next", None))
         self.pushButton[5].setText(_translate("MainWindow", "Exit", None))
 
     def slot_click(self, pyr):
@@ -157,7 +171,7 @@ class Ui_MainWindow(object):
         # if click the fine level label
         if pyr == 0 :
             click_label = self.label0[cy, cx]
-            idx = self.label0 == click_label
+            #idx = self.label0 == click_label
 
             if click_label not in self.mergeSegs[pyr]:
                 self.mergeSegs[pyr].append(click_label) 
@@ -171,7 +185,7 @@ class Ui_MainWindow(object):
             click_label = self.auxlabel[cy, cx]
             idx = self.auxlabel == click_label
 
-            cover_labels = np.unique(self.label0[idx])
+            cover_labels = list(np.unique(self.label0[idx]))
 
             if click_label not in self.mergeSegs[pyr]:
                 self.mergeSegs[pyr].append(click_label) 
@@ -179,11 +193,15 @@ class Ui_MainWindow(object):
 
             else:
                 self.mergeSegs[pyr].pop(self.mergeSegs[pyr].index(click_label))
-                if len(self.mergeSegs[0]):
-                    cover_labels = list(np.setdiff1d(cover_labels, np.asarray(self.mergeSegs[0])))
-                    map(lambda l: self.mergeSegs[0].pop(self.mergeSegs[0].index(l)), cover_labels)
+                for l in cover_labels:
+                    if self.mergeSegs[0].count(l):
+                        self.mergeSegs[0].pop(self.mergeSegs[0].index(l))
+                #if len(self.mergeSegs[0]):
+                    #cover_labels = list(np.setdiff1d(cover_labels, np.asarray(self.mergeSegs[0])))
+                    #map(lambda l: self.mergeSegs[0].pop(self.mergeSegs[0].index(l)), cover_labels)
 
         self.show_label(pyr)
+        #print self.mergeSegs[0]
 
     def show_label(self, pyr):
         '''
@@ -198,9 +216,11 @@ class Ui_MainWindow(object):
             qimage = self.query.toImage()
             imgarr = rgb_view(qimage)
             self.npimg = imresize(imgarr, (self.h, self.w), interp='bicubic')
+        
 
-        contours = slic.contours(self.npimg, self.data['labels'][self.index], 10)
+        contours = slic.contours(self.npimg, self.label0, 10)
         draw0 = contours[:, :, :-1]
+        
         self.drawMask(draw0, self.label0, self.mergeSegs[0], 0)
         
         if pyr is not 0:
@@ -222,7 +242,7 @@ class Ui_MainWindow(object):
 
         qimage = array2qimage(draw)
         qpixmap = QPixmap.fromImage(qimage)
-        self.label[pyr].setPixmap(qpixmap.scaled(self.label[0].size(), Qt.KeepAspectRatio))        
+        self.label[pyr].setPixmap(qpixmap.scaled(self.label[0].size(), Qt.KeepAspectRatio))      
 
     def slot_slic(self, pyr):
         '''
@@ -246,17 +266,17 @@ class Ui_MainWindow(object):
         self.npimg = imresize(imgarr, (self.label[pyr].size().height(), self.label[pyr].size().width()), interp='bicubic')
         
         if pyr == 0:
-            self.data['labels'][self.index] = slic.slic_n(self.npimg, 300, 10)
-            contours = slic.contours(self.npimg, self.data['labels'][self.index], 10)
+            self.label0 = slic.slic_n(self.npimg, 300, 10)
+            #contours = slic.contours(self.npimg, self.label0, 10)
         else:
             self.auxlabel = slic.slic_n(self.npimg, 50, 10)
-            contours = slic.contours(self.npimg, self.auxlabel, 10)
+            #contours = slic.contours(self.npimg, self.auxlabel, 10)
 
         # numpy to QImage
-        qimage_slic = array2qimage(contours[:, :, :-1])
+        #qimage_slic = array2qimage(contours[:, :, :-1])
         # QImage to QPixmapself.nplabel[pyr]
-        qpixmap_slic = QPixmap.fromImage(qimage_slic)
-        self.label[pyr].setPixmap(qpixmap_slic.scaled(self.label[0].size(), Qt.KeepAspectRatio))
+        #qpixmap_slic = QPixmap.fromImage(qimage_slic)
+        #self.label[pyr].setPixmap(qpixmap_slic.scaled(self.label[0].size(), Qt.KeepAspectRatio))
 
     def slot_merge(self):
         # update image label map
@@ -267,86 +287,69 @@ class Ui_MainWindow(object):
                 self.label0[self.label0 == l] = min_label
 
         for i in range(self.npyr):
+            self.mergeSegs[i] = []
             self.show_label(i)
-                            
+
+        self.data['flags'][self.index] = 1
+
+    def slot_reset(self):
+        '''
+            reset label 
+        '''
+        self.query = QPixmap(self.qfiles[self.index])
+        for i in range(self.npyr):
+            self.slot_slic(i)
+            self.show_label(i)
+            self.mergeSegs[i] = []              
 
     def slot_previous(self):
 
-        label = self.nplabel[0].copy()*0
-        n = 1
-        for l in self.mergeSegs[0]:
-            label[self.nplabel[0] == l] = n
-            n += 1
-        self.querySegs[self.index] = label
-
-
-        self.index -= 1
-        if self.index >= 0:
-            self.query = QPixmap(self.qFiles[self.index])
-            qimage = self.query.toImage()
-            # QImage to numpy
-            imgarr = rgb_view(qimage)
-            for pyr in range(len(self.label)):
-                self.npimg[pyr] = imresize(imgarr, (self.label[pyr].size().height(), self.label[pyr].size().width()), interp='bicubic')
-                self.nplabel[pyr] = self.querySegs[self.index]
-                contours = slic.contours(self.npimg[pyr], self.nplabel[pyr], 10)
-                b = contours[:, :, :-1]
-                self.npdraw[pyr] = b
-                self.npdraw0[pyr] = b.copy()
-
-                # numpy to QImage
-                qimage_slic = array2qimage(b)
-                # QImage to QPixmap
-                pixmap = QPixmap.fromImage(qimage_slic)
-                self.label[pyr].setPixmap(pixmap.scaled(self.label[pyr].size(), Qt.KeepAspectRatio))
-            
-                self.mergeSegs[pyr] = []
-
-
-    def slot_next(self):
-        
-        # save current label to self.querySegs
-        label = self.nplabel[0].copy()*0
-        n = 1
-        for l in self.mergeSegs[0]:
-            label[self.nplabel[0] == l] = n
-            n += 1
-        self.querySegs[self.index] = label
+        # save finished label
+        self.data['labels'][self.index] = self.label0
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
 
         # initialize for labeling the next image
-        self.index += 1
+        self.index = max(self.index-1, 0)
+        self.data['index'] = self.index
         
-        if self.index < len(self.qFiles):
-            self.query = QPixmap(self.qFiles[self.index])
+        self.query = QPixmap(self.qfiles[self.index])
+        for i in range(self.npyr):
+            self.slot_slic(i)
+
+        if self.data['flags'][self.index]:
+            # has been labeled
+            self.label0 = self.data['labels'][self.index]
+            for pyr in range(self.npyr):
+                self.show_label(pyr)
+        
+        for pyr in range(self.npyr):
+            self.mergeSegs[pyr] = []
+
+    def slot_next(self):
+
+        # save finished label
+        self.data['labels'][self.index] = self.label0
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
+
+        # initialize for labeling the next image
+        self.index = min(self.index+1, len(self.qfiles)-1)
+        self.data['index'] = self.index
+        
+        self.query = QPixmap(self.qfiles[self.index])
+        for i in range(self.npyr):
+            self.slot_slic(i)
+
+        if self.data['flags'][self.index]:
+            # has been labeled
+            self.label0 = self.data['labels'][self.index]
             
-            if len(self.querySegs) == self.index:
-
-                for i in range(len(self.label)):
-                    self.slot_slic(i)
-                    self.label[i].setPixmap(self.qdraw[i].scaled(self.label[i].size(), Qt.KeepAspectRatio))
-
-                self.querySegs.append(self.nplabel[0])
-
-            else:
-                qimage = self.query.toImage()
-                # QImage to numpy
-                imgarr = rgb_view(qimage)
-                for pyr in range(len(self.label)):
-                    self.npimg[pyr] = imresize(imgarr, (self.label[pyr].size().height(), self.label[pyr].size().width()), interp='bicubic')
-                    self.nplabel[pyr] = self.querySegs[self.index]
-                    contours = slic.contours(self.npimg[pyr], self.nplabel[pyr], 10)
-                    b = contours[:, :, :-1]
-                    self.npdraw[pyr] = b
-                    self.npdraw0[pyr] = b.copy()
-
-                    # numpy to QImage
-                    qimage_slic = array2qimage(b)
-                    # QImage to QPixmap
-                    pixmap = QPixmap.fromImage(qimage_slic)
-                    self.label[pyr].setPixmap(pixmap.scaled(self.label[pyr].size(), Qt.KeepAspectRatio))
-            
-            for pyr in range(len(self.label)):
-                self.mergeSegs[pyr] = []
+        for pyr in range(self.npyr):
+            self.show_label(pyr)
+            self.mergeSegs[pyr] = []            
 
 
 def main():
