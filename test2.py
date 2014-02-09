@@ -179,7 +179,7 @@ class Ui_MainWindow(object):
             else:
                 self.mergeSegs[pyr].pop(self.mergeSegs[pyr].index(click_label))
                 
-        # if click the caurse level label
+        # if click the coarse level label
         else:
 
             click_label = self.auxlabel[cy, cx]
