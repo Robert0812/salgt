@@ -97,7 +97,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.random_gallery)
+        QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
         QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
         QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
@@ -107,13 +107,15 @@ class Ui_MainWindow(object):
         
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        self.qfiles = sorted(glob.glob('../data/query/*.bmp'))
-        self.gfiles = sorted(glob.glob('../data/gallery/*.bmp'))
+        self.data_path = '..' # default path
+
+        self.qfiles = sorted(glob.glob(self.data_path + '/data/query/*.bmp'))
+        self.gfiles = sorted(glob.glob(self.data_path + '/data/gallery/*.bmp'))
         self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
-        default_path = '../'
+        
 
-        self.save_path = default_path + 'labels_new.pkl'
+        self.save_path = self.data_path + '/labels_new.pkl'
         
         if os.path.isfile(self.save_path):
             # labeled data exists
@@ -137,7 +139,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "Saliency Score Annotation", None))
         self.label.setText(_translate("MainWindow", "TextLabel", None))
-        self.pushButton[0].setText(_translate("MainWindow", "Change Gallery", None))
+        self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
         self.pushButton[1].setText(_translate("MainWindow", "Next Round", None))
         self.pushButton[2].setText(_translate("MainWindow", "Save && Exit", None))
         self.pushButton[3].setText(_translate("MainWindow", "Reset ALL", None))
@@ -145,6 +147,39 @@ class Ui_MainWindow(object):
         for i in range(4):
             for j in range(8):
                 self.labelset[i*8+j].setText(_translate("MainWindow", "Image{}".format(i*8+j+1), None))
+
+    def slot_load(self):
+        newDialog = QDialog();
+        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../')
+        
+        if fpath is None:
+            return
+
+        self.data_path = str(fpath) 
+        self.qfiles = sorted(glob.glob(self.data_path + '/data/query/*.bmp'))
+        self.gfiles = sorted(glob.glob(self.data_path + '/data/gallery/*.bmp'))
+        self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
+        self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
+        
+        self.save_path = self.data_path + '/labels_new.pkl'
+        
+        if os.path.isfile(self.save_path):
+            # labeled data exists
+
+            f = open(self.save_path, 'rb')
+            self.data = cPickle.load(f)
+            f.close()
+            
+        else:
+            print 'Label data does not exist!'
+            QApplication.quit()
+
+        # randomly sample image index and part index
+        self.random_query()
+
+        # initial visualization 
+        self.show_query()
+        self.random_gallery()
 
     def random_query(self):
 
@@ -156,6 +191,11 @@ class Ui_MainWindow(object):
         self.label0 = self.data['labels'][self.index]
         self.score0 = self.data['scores'][self.index]
         self.qid = self.data['identity'][self.index]
+
+        rnd_idx = np.random.randint(0, len(self.score0.keys()))
+        self.partid = self.score0.keys()[rnd_idx]
+
+    def random_part(self):
 
         rnd_idx = np.random.randint(0, len(self.score0.keys()))
         self.partid = self.score0.keys()[rnd_idx]
@@ -257,6 +297,12 @@ class Ui_MainWindow(object):
         self.random_gallery()
 
     def slot_exit(self):
+        '''
+            save and exit
+        '''
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
         QApplication.quit()
 
     def slot_reset(self):
