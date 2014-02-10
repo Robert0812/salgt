@@ -57,7 +57,7 @@ class Ui_MainWindow(object):
         self.h = 720 #self.label[0].size().height()
 
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(3*self.w +180, self.h+30)
+        MainWindow.resize(3*self.w +180, self.h+100)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         #self.label = CLabel(self.centralwidget)
@@ -95,6 +95,12 @@ class Ui_MainWindow(object):
         self.reflabel.setObjectName('label_{}'.format(i+1))
         self.reflabel.setGeometry(QRect(150, 30, self.w, self.h))
         self.horizontalLayout.addWidget(self.reflabel)
+
+        self.readme = QPlainTextEdit(self.centralwidget)
+        self.readme.setReadOnly(True)
+        self.readme.setGeometry(QRect(150, self.h+40, 3*self.w, 25))
+        self.readme.setPlainText("Important: Please select body part before clicking 'Next' button!")
+
         
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtGui.QStatusBar(MainWindow)
@@ -130,8 +136,9 @@ class Ui_MainWindow(object):
             f = open(self.save_path, 'rb')
             self.data = cPickle.load(f)
             f.close()
+            
             self.index = self.data['index']
-
+       
             # initialize labeled data {label0, auxlabel}
             self.label0 = self.data['labels'][self.index]
             self.query = QPixmap(self.qfiles[self.index])
@@ -145,6 +152,7 @@ class Ui_MainWindow(object):
             self.data = {}
             self.data['index'] = self.index
             self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
+            self.data['parts'] = [[] for i in range(len(self.qfiles))]
             self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
             
@@ -319,16 +327,21 @@ class Ui_MainWindow(object):
         '''
             reset label 
         '''
+        self.label[0].cx = -1
+        self.label[0].cy = -1
+
         self.query = QPixmap(self.qfiles[self.index])
         for i in range(self.npyr):
             self.slot_slic(i)
             self.show_label(i)
-            self.mergeSegs[i] = []              
+            self.mergeSegs[i] = []
 
     def slot_previous(self):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
+        self.data['parts'][self.index] = self.mergeSegs[0]
+
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
@@ -357,6 +370,7 @@ class Ui_MainWindow(object):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
+        self.data['parts'][self.index] = self.mergeSegs[0]
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
