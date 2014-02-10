@@ -40,13 +40,15 @@ class CLabel(QLabel):
     def __init__(self, parent):
         QLabel.__init__(self, parent)
         self.setMouseTracking(True)
+        self.cx = -1
+        self.cy = -1
 
     def mousePressEvent(self, event):
         self.cx = event.pos().x()
         self.cy = event.pos().y()
         self.emit(SIGNAL('clicked()'))
-         
         event.accept()
+        
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -234,7 +236,18 @@ class Ui_MainWindow(object):
             draw = contours[:, :, :-1]
             self.drawMask(draw, self.auxlabel, self.mergeSegs[pyr], pyr)
 
-        qimage = array2qimage(self.npimg)
+        # show reference label
+        draw = self.npimg.copy()
+        xx = np.tile(np.asarray(range(self.w)), (self.h, 1))
+        yy = np.tile(np.asarray(range(self.h)), (self.w, 1)).transpose()
+            
+        idx_x = abs(xx - self.label[0].cx) < 5
+        idx_y = abs(yy -self.label[0].cy) < 5
+
+        for i in range(3):
+            draw[:, :, i][idx_x & idx_y] = 255
+
+        qimage = array2qimage(draw)
         qpixmap = QPixmap.fromImage(qimage)
         self.reflabel.setPixmap(qpixmap.scaled(self.reflabel.size(), Qt.KeepAspectRatio))  
 
@@ -337,6 +350,9 @@ class Ui_MainWindow(object):
         for pyr in range(self.npyr):
             self.mergeSegs[pyr] = []
 
+        self.label[0].cx = -1
+        self.label[0].cy = -1
+
     def slot_next(self):
 
         # save finished label
@@ -359,8 +375,10 @@ class Ui_MainWindow(object):
             
         for pyr in range(self.npyr):
             self.show_label(pyr)
-            self.mergeSegs[pyr] = []            
+            self.mergeSegs[pyr] = []   
 
+        self.label[0].cx = -1
+        self.label[0].cy = -1
 
 def main():
 
