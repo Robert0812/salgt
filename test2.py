@@ -16,7 +16,6 @@ import numpy as np
 from scipy.misc import imresize
 from qimage2ndarray import *
 import cPickle
-import Image
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import * 
@@ -49,11 +48,14 @@ class CLabel(QLabel):
          
         event.accept()
 
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
+
+        self.w = 270 #self.label[0].size().width()
+        self.h = 720 #self.label[0].size().height()
+
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(800, 794)
+        MainWindow.resize(3*self.w +180, self.h+30)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         #self.label = CLabel(self.centralwidget)
@@ -61,7 +63,7 @@ class Ui_MainWindow(object):
         #self.label.setObjectName(_fromUtf8("label"))
         
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(30, 70, 102, 611))
+        self.widget.setGeometry(QtCore.QRect(20, 70, 100, 611))
         self.widget.setObjectName(_fromUtf8("widget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.widget)
         self.verticalLayout.setMargin(0)
@@ -74,7 +76,7 @@ class Ui_MainWindow(object):
             self.verticalLayout.addWidget(self.pushButton[-1])
 
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.move(180, 30)
+        self.widget.move(150, 30)
         self.widget.setObjectName(_fromUtf8("widget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.widget)
         self.horizontalLayout.setMargin(0)
@@ -84,8 +86,13 @@ class Ui_MainWindow(object):
             label = CLabel(self.widget)
             label.setObjectName(_fromUtf8("label_{}".format(i)))
             self.label.append(label)
-            self.label[-1].setGeometry(QRect(180+i*280, 30, 270, 720))
+            self.label[-1].setGeometry(QRect(150, 30, self.w, self.h))
             self.horizontalLayout.addWidget(self.label[-1])
+
+        self.reflabel = QLabel(self.widget)
+        self.reflabel.setObjectName('label_{}'.format(i+1))
+        self.reflabel.setGeometry(QRect(150, 30, self.w, self.h))
+        self.horizontalLayout.addWidget(self.reflabel)
         
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtGui.QStatusBar(MainWindow)
@@ -107,8 +114,7 @@ class Ui_MainWindow(object):
         default_query = '../data/query'
         self.qfiles = sorted(glob.glob(default_query+'/*.bmp'))
 
-        self.w = self.label[0].size().width()
-        self.h = self.label[0].size().height()
+        
         self.npyr = len(self.label)
         self.mergeSegs = [[] for i in range(self.npyr)]
 
@@ -227,6 +233,10 @@ class Ui_MainWindow(object):
             contours = slic.contours(self.npimg, self.auxlabel, 10)
             draw = contours[:, :, :-1]
             self.drawMask(draw, self.auxlabel, self.mergeSegs[pyr], pyr)
+
+        qimage = array2qimage(self.npimg)
+        qpixmap = QPixmap.fromImage(qimage)
+        self.reflabel.setPixmap(qpixmap.scaled(self.reflabel.size(), Qt.KeepAspectRatio))  
 
     def drawMask(self, draw, label, roi, pyr):
         '''
