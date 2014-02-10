@@ -99,7 +99,7 @@ class Ui_MainWindow(object):
         self.readme = QPlainTextEdit(self.centralwidget)
         self.readme.setReadOnly(True)
         self.readme.setGeometry(QRect(150, self.h+40, 3*self.w, 25))
-        self.readme.setPlainText("Important: Please select body part before clicking 'Next' button!")
+        self.readme.setPlainText("Important: before clicking 'Next' button, please select all body part!")
 
         
         MainWindow.setCentralWidget(self.centralwidget)
@@ -152,7 +152,7 @@ class Ui_MainWindow(object):
             self.data = {}
             self.data['index'] = self.index
             self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
-            self.data['parts'] = [[] for i in range(len(self.qfiles))]
+            self.data['scores'] = [[] for i in range(len(self.qfiles))]
             self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
             
@@ -340,7 +340,8 @@ class Ui_MainWindow(object):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
-        self.data['parts'][self.index] = self.mergeSegs[0]
+        if len(self.mergeSegs[0]):
+            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], 0)
 
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
@@ -370,7 +371,9 @@ class Ui_MainWindow(object):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
-        self.data['parts'][self.index] = self.mergeSegs[0]
+        if len(self.mergeSegs[0]):
+            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], 0)
+
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
