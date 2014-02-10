@@ -68,7 +68,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.pushButton = []
-        for i in range(3):
+        for i in range(4):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
@@ -100,6 +100,7 @@ class Ui_MainWindow(object):
         QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.random_gallery)
         QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
+        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
         for i in range(len(self.labelset)):
             QObject.connect(self.labelset[i], SIGNAL('clicked()'), lambda idx = i: self.slot_click(idx))
@@ -139,6 +140,8 @@ class Ui_MainWindow(object):
         self.pushButton[0].setText(_translate("MainWindow", "Change Gallery", None))
         self.pushButton[1].setText(_translate("MainWindow", "Next Round", None))
         self.pushButton[2].setText(_translate("MainWindow", "Save && Exit", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Reset ALL", None))
+
         for i in range(4):
             for j in range(8):
                 self.labelset[i*8+j].setText(_translate("MainWindow", "Image{}".format(i*8+j+1), None))
@@ -232,6 +235,7 @@ class Ui_MainWindow(object):
         '''
 
         if self.flags.sum():
+            print self.flags.sum()
             # record current label
             # 1./self.flags.sum() represents confidence of correct match
             select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
@@ -241,9 +245,9 @@ class Ui_MainWindow(object):
             # record number of annotation rounds 
             self.score0[self.partid][1] += 1
 
-        #f = open(self.save_path, 'wb')
-        #cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
-        #f.close()
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
 
         # randomly sample image index and part index
         self.random_query()
@@ -254,6 +258,21 @@ class Ui_MainWindow(object):
 
     def slot_exit(self):
         QApplication.quit()
+
+    def slot_reset(self):
+        '''
+            Reset all previous labels of salience score to 0 
+        '''
+        for i in range(len(self.qfiles)):
+            score0 = self.data['scores'][i]
+            for p in score0.keys():
+                score0[p][0] = 0
+                score0[p][1] = 0
+
+        msg = QMessageBox()
+        msg.setWindowTitle('Message!')
+        msg.setText("All previous label has been reset.");
+        msg.exec_()
 
 def main():
 
