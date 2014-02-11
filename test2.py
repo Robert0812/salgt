@@ -57,7 +57,7 @@ class Ui_MainWindow(object):
         self.h = 720 #self.label[0].size().height()
 
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(3*self.w +180, self.h+100)
+        MainWindow.resize(3*self.w +180, self.h+80)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         #self.label = CLabel(self.centralwidget)
@@ -65,20 +65,20 @@ class Ui_MainWindow(object):
         #self.label.setObjectName(_fromUtf8("label"))
         
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(20, 70, 100, 611))
+        self.widget.setGeometry(QtCore.QRect(20, 70, 110, 611))
         self.widget.setObjectName(_fromUtf8("widget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.widget)
         self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.pushButton = []
-        for i in range(6):
+        for i in range(7):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
             self.verticalLayout.addWidget(self.pushButton[-1])
 
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.move(150, 30)
+        self.widget.move(150, 20)
         self.widget.setObjectName(_fromUtf8("widget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.widget)
         self.horizontalLayout.setMargin(0)
@@ -88,18 +88,18 @@ class Ui_MainWindow(object):
             label = CLabel(self.widget)
             label.setObjectName(_fromUtf8("label_{}".format(i)))
             self.label.append(label)
-            self.label[-1].setGeometry(QRect(150, 30, self.w, self.h))
+            self.label[-1].setGeometry(QRect(150, 20, self.w, self.h))
             self.horizontalLayout.addWidget(self.label[-1])
 
         self.reflabel = QLabel(self.widget)
         self.reflabel.setObjectName('label_{}'.format(i+1))
-        self.reflabel.setGeometry(QRect(150, 30, self.w, self.h))
+        self.reflabel.setGeometry(QRect(150, 20, self.w, self.h))
         self.horizontalLayout.addWidget(self.reflabel)
 
         self.readme = QPlainTextEdit(self.centralwidget)
         self.readme.setReadOnly(True)
         self.readme.setGeometry(QRect(150, self.h+40, 3*self.w, 25))
-        self.readme.setPlainText("Important: before clicking 'Next' button, please select all body part!")
+        self.readme.setPlainText("Important: before clicking 'Save Parts' button, please select all body part!")
 
         
         MainWindow.setCentralWidget(self.centralwidget)
@@ -108,28 +108,31 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
-        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
+        
         QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_previous)
         QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
+        QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_merge)
+        QObject.connect(self.pushButton[5], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_save)
         QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        QObject.connect(self.pushButton[6], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
+        QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
+
         for i in range(len(self.label)):
             QObject.connect(self.label[i], SIGNAL('clicked()'), lambda pyr = i: self.slot_click(pyr))
 
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # load default files
-        default_query = '../data/query'
-        self.qfiles = sorted(glob.glob(default_query+'/*.bmp'))
+        self.data_path = '../' # default path
+        self.qfiles = sorted(glob.glob(self.data_path+'data/query/*.bmp'))
 
         
         self.npyr = len(self.label)
         self.mergeSegs = [[] for i in range(self.npyr)]
 
         # load label data
-        default_file = '../parts.pkl'
-
-        self.save_path = default_file
+        self.save_path = self.data_path + 'parts.pkl'
+        
         if os.path.isfile(self.save_path):
             # labeled data exists
 
@@ -172,14 +175,75 @@ class Ui_MainWindow(object):
         for i in range(len(self.label)):
             self.label[i].setText(_translate("MainWindow", "Image{}".format(i), None))
 
-        self.pushButton[0].setText(_translate("MainWindow", "NaN", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Merge", None))
         self.pushButton[2].setText(_translate("MainWindow", "Previous", None))
         self.pushButton[3].setText(_translate("MainWindow", "Next", None))
-        self.pushButton[4].setText(_translate("MainWindow", "Reset", None))
-        self.pushButton[5].setText(_translate("MainWindow", "Exit", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Merge Segs", None))
+        self.pushButton[5].setText(_translate("MainWindow", "Save Parts", None))
+        self.pushButton[4].setText(_translate("MainWindow", "Reset Segs", None))
+        self.pushButton[6].setText(_translate("MainWindow", "Exit", None))
+        self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
+        
+
+
+    def slot_load(self):
+
+        newDialog = QDialog()
+        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../')
+        
+        if len(fpath) == 0:
+            QMessageBox.warning(None, 'Warning!', 'Nothing loaded.')
+            return
+
+        self.data_path = str(fpath) + '/' # loaded path
+        self.qfiles = sorted(glob.glob(self.data_path+'data/query/*.bmp'))
+        
+        self.npyr = len(self.label)
+        self.mergeSegs = [[] for i in range(self.npyr)]
+
+        # load label data
+        self.save_path = self.data_path + 'parts.pkl'
+        
+        if os.path.isfile(self.save_path):
+            # labeled data exists
+
+            f = open(self.save_path, 'rb')
+            self.data = cPickle.load(f)
+            f.close()
+            
+            self.index = self.data['index']
+       
+            # initialize labeled data {label0, auxlabel}
+            self.label0 = self.data['labels'][self.index]
+            self.query = QPixmap(self.qfiles[self.index])
+            qimage = self.query.toImage()
+            imgarr = rgb_view(qimage)
+            self.npimg = imresize(imgarr, (self.h, self.w), interp='bicubic')
+            self.auxlabel = slic.slic_n(self.npimg, 50, 10)
+
+        else:
+            # no previous annotation available
+            self.data = {}
+            self.data['index'] = self.index
+            self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
+            self.data['scores'] = [[] for i in range(len(self.qfiles))]
+            self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
+            self.data['flags'] = np.zeros(len(self.qfiles))
+            
+            self.index = 0
+            self.query = QPixmap(self.qfiles[self.index])
+
+            # compute the initial label map given self.query
+            for i in range(self.npyr):
+                self.slot_slic(i)
+
+        for i in range(self.npyr):
+            self.show_label(i)
+
 
     def slot_click(self, pyr):
+        '''
+            Update image to show selected segment 
+        '''
 
         cx = self.label[pyr].cx
         cy = self.label[pyr].cy
@@ -303,13 +367,11 @@ class Ui_MainWindow(object):
             self.auxlabel = slic.slic_n(self.npimg, 50, 10)
             #contours = slic.contours(self.npimg, self.auxlabel, 10)
 
-        # numpy to QImage
-        #qimage_slic = array2qimage(contours[:, :, :-1])
-        # QImage to QPixmapself.nplabel[pyr]
-        #qpixmap_slic = QPixmap.fromImage(qimage_slic)
-        #self.label[pyr].setPixmap(qpixmap_slic.scaled(self.label[0].size(), Qt.KeepAspectRatio))
-
     def slot_merge(self):
+        '''
+            Update segmentation label by merging selected segments
+        '''
+
         # update image label map
         if len(self.mergeSegs[0]) > 0:
             min_label = min(self.mergeSegs[0])
@@ -317,31 +379,38 @@ class Ui_MainWindow(object):
                 l = self.mergeSegs[0][i]
                 self.label0[self.label0 == l] = min_label
 
-        for i in range(self.npyr):
-            self.mergeSegs[i] = []
-            self.show_label(i)
+            for i in range(self.npyr):
+                self.mergeSegs[i] = []
+                self.show_label(i)
 
-        self.data['flags'][self.index] = 1
+            self.data['flags'][self.index] = 1
 
-    def slot_reset(self):
+    def slot_save(self):
         '''
-            reset label 
+            save labeled body parts
         '''
-        self.label[0].cx = -1
-        self.label[0].cy = -1
+        # save finished label
+        if len(self.mergeSegs[0]):
+            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], [0, 0])
 
-        self.query = QPixmap(self.qfiles[self.index])
-        for i in range(self.npyr):
-            self.slot_slic(i)
-            self.show_label(i)
-            self.mergeSegs[i] = []
+            f = open(self.save_path, 'wb')
+            cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
+            f.close()
 
+            self.readme.setPlainText('Saved.')
+            #self.statusBar().showMessage('Saved.')
+
+        else:
+
+            msg = QMessageBox.warning(None, 'Warning!', 'No body part is selected.')
+
+    
     def slot_previous(self):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
-        if len(self.mergeSegs[0]):
-            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], 0)
+        #if len(self.mergeSegs[0]):
+        #    self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], [0, 0])
 
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
@@ -367,13 +436,13 @@ class Ui_MainWindow(object):
         self.label[0].cx = -1
         self.label[0].cy = -1
 
+        self.readme.setPlainText("Important: before clicking 'Save Parts' button, please select all body part!")
+
     def slot_next(self):
 
         # save finished label
         self.data['labels'][self.index] = self.label0
-        if len(self.mergeSegs[0]):
-            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], 0)
-
+        
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
@@ -396,6 +465,35 @@ class Ui_MainWindow(object):
 
         self.label[0].cx = -1
         self.label[0].cy = -1
+
+        self.readme.setPlainText("Important: before clicking 'Save Parts' button, please select all body part!")
+
+
+    def slot_reset(self):
+        '''
+            Reset labeling
+        '''
+        
+        msg = QMessageBox.question(None, 'Reset', 'Reset all previous labels?', QMessageBox.Yes, QMessageBox.No)
+        if msg == QMessageBox.Yes:
+            self.label[0].cx = -1
+            self.label[0].cy = -1
+
+            self.query = QPixmap(self.qfiles[self.index])
+            for i in range(self.npyr):
+                self.slot_slic(i)
+                self.show_label(i)
+                self.mergeSegs[i] = []
+
+
+    def slot_exit(self):
+        '''
+            Quit the application
+        '''
+        msg = QMessageBox.question(None, 'Exit', 'Quit the application?', QMessageBox.Yes, QMessageBox.No)
+        if msg == QMessageBox.Yes:
+            QApplication.quit()
+
 
 def main():
 
