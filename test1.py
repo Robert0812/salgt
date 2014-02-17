@@ -13,13 +13,14 @@ import sys
 import glob
 import slic
 import numpy as np
-from scipy.misc import imresize
 from qimage2ndarray import *
 import cPickle
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import * 
 from PyQt4 import QtCore, QtGui
+from skimage.transform import resize
+#from scipy.mics import imresize
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -34,6 +35,13 @@ try:
 except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
+
+def imresize(im, shape, interp='bicubic'):
+    '''
+        replacement of scipy imresize
+    '''
+    if interp is 'bicubic':
+        return (resize(im, shape, order=4)*255).astype(np.uint8)
 
 class CLabel(QLabel):
 
@@ -68,7 +76,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.pushButton = []
-        for i in range(4):
+        for i in range(5):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
@@ -99,24 +107,26 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
         QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
-        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
-        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_viewer)
+        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
+        QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
         for i in range(len(self.labelset)):
             QObject.connect(self.labelset[i], SIGNAL('clicked()'), lambda idx = i: self.slot_click(idx))
         
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        self.data_path = '..' # default path
+        # default initialization
+        self.data_path = '../' # default path
 
-        self.qfiles = sorted(glob.glob(self.data_path + '/data/query/*.bmp'))
-        self.gfiles = sorted(glob.glob(self.data_path + '/data/gallery/*.bmp'))
+        self.qfiles = sorted(glob.glob(self.data_path + 'data/query/*.bmp'))
+        self.gfiles = sorted(glob.glob(self.data_path + 'data/gallery/*.bmp'))
         self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
         
 
-        self.save_path = self.data_path + '/labels_new.pkl'
-        
+        self.save_path = self.data_path + 'parts.pkl'
+        print self.save_path
         if os.path.isfile(self.save_path):
             # labeled data exists
 
@@ -129,24 +139,44 @@ class Ui_MainWindow(object):
             QApplication.quit()
 
         # randomly sample image index and part index
-        self.random_query()
+        self.pairidx = 0 # index of image-part pair 
+        seed = 1
+        self.random_list(seed)
+        self.index = self.pairs[0][0]
+        self.partid = self.pairs[0][1]
+        self.qid = self.data['identity'][self.index]
 
         # initial visualization 
         self.show_query()
-        self.random_gallery()
+        self.show_gallery()
 
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "Saliency Score Annotation", None))
         self.label.setText(_translate("MainWindow", "TextLabel", None))
         self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Next Round", None))
-        self.pushButton[2].setText(_translate("MainWindow", "Save && Exit", None))
-        self.pushButton[3].setText(_translate("MainWindow", "Reset ALL", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Save && Next", None))
+        self.pushButton[2].setText(_translate("MainWindow", "Open Viewer", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Exit", None))
+        self.pushButton[4].setText(_translate("MainWindow", "Reset ALL", None))
 
         for i in range(4):
             for j in range(8):
                 self.labelset[i*8+j].setText(_translate("MainWindow", "Image{}".format(i*8+j+1), None))
+
+
+    def random_list(self, seed):
+        '''
+            Generate a random list of image-part pairs that covering all images and all parts
+        '''
+        self.pairs = []
+        for i in range(len(self.qfiles)):
+            for p in self.data['scores'][i].keys():
+                self.pairs.append([i, p])
+
+        np.random.seed(seed)
+        np.random.shuffle(self.pairs)
+
 
     def slot_load(self):
         newDialog = QDialog();
@@ -155,13 +185,13 @@ class Ui_MainWindow(object):
         if fpath is None:
             return
 
-        self.data_path = str(fpath) 
-        self.qfiles = sorted(glob.glob(self.data_path + '/data/query/*.bmp'))
-        self.gfiles = sorted(glob.glob(self.data_path + '/data/gallery/*.bmp'))
+        self.data_path = str(fpath) + '/'
+        self.qfiles = sorted(glob.glob(self.data_path + 'data/query/*.bmp'))
+        self.gfiles = sorted(glob.glob(self.data_path + 'data/gallery/*.bmp'))
         self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
         
-        self.save_path = self.data_path + '/labels_new.pkl'
+        self.save_path = self.data_path + 'parts.pkl'
         
         if os.path.isfile(self.save_path):
             # labeled data exists
@@ -175,41 +205,46 @@ class Ui_MainWindow(object):
             QApplication.quit()
 
         # randomly sample image index and part index
-        self.random_query()
+        self.pairidx = 0 # index of image-part pair 
+        seed = 1
+        self.random_list(seed)
+        self.index = self.pairs[0][0]
+        self.partid = self.pairs[0][1]
+        self.qid = self.data['identity'][self.index]
 
         # initial visualization 
         self.show_query()
-        self.random_gallery()
+        self.show_gallery()
 
-    def random_query(self):
+    #def random_query(self): #X
 
         # randomly sample image index and part index
-        self.index = np.random.randint(0, len(self.qfiles))
-        self.query = QPixmap(self.qfiles[self.index])
+    #    self.index = np.random.randint(0, len(self.qfiles))
+    #    self.query = QPixmap(self.qfiles[self.index])
             
         # initialize labeled data {label0, auxlabel}
-        self.label0 = self.data['labels'][self.index]
-        self.score0 = self.data['scores'][self.index]
-        self.qid = self.data['identity'][self.index]
+    #    self.label0 = self.data['labels'][self.index]
+    #    self.score0 = self.data['scores'][self.index]
+    #    self.qid = self.data['identity'][self.index]
 
-        rnd_idx = np.random.randint(0, len(self.score0.keys()))
-        self.partid = self.score0.keys()[rnd_idx]
+    #    rnd_idx = np.random.randint(0, len(self.score0.keys()))
+    #    self.partid = self.score0.keys()[rnd_idx]
 
-    def random_part(self):
+    #def random_part(self):
 
-        rnd_idx = np.random.randint(0, len(self.score0.keys()))
-        self.partid = self.score0.keys()[rnd_idx]
+    #    rnd_idx = np.random.randint(0, len(self.score0.keys()))
+    #    self.partid = self.score0.keys()[rnd_idx]
 
     def show_query(self):
         '''
             show query image with only one visible part for labeling
         '''
-
-        qimage = self.query.toImage()
+        query = QPixmap(self.qfiles[self.index])
+        qimage = query.toImage()
         imgarr = rgb_view(qimage)
         draw0 = imresize(imgarr, (self.h, self.w), interp='bicubic')
 
-        idx = self.label0 != self.partid
+        idx = self.data['labels'][self.index] != self.partid
         for i in range(3):
             draw0[:, :, i][idx] = 255
 
@@ -217,7 +252,7 @@ class Ui_MainWindow(object):
         qpixmap = QPixmap.fromImage(qimage)
         self.label.setPixmap(qpixmap.scaled(self.label.size(), Qt.KeepAspectRatio))          
 
-    def random_gallery(self):
+    def show_gallery(self):
         #newDialog = QDialog();
         #fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../data')
         #fpath = '../data/gallery'
@@ -273,52 +308,59 @@ class Ui_MainWindow(object):
         '''
             re-random query and gallery for a new round of annotation
         '''
-
+        # save current labeling
         if self.flags.sum():
-            print self.flags.sum()
+            #print self.flags.sum()
             # record current label
             # 1./self.flags.sum() represents confidence of correct match
             select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
-            print select_ids
+            #print select_ids
             if self.qid in select_ids:
                 self.score0[self.partid][0] += 1./self.flags.sum()
             # record number of annotation rounds 
             self.score0[self.partid][1] += 1
 
+            print 'part score {} (labeled {} times)'.format(self.score0[self.partid][0], self.score0[self.partid][1])
+
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-        # randomly sample image index and part index
-        self.random_query()
+        self.pairidx += 1
+        self.index = self.pairs[self.pairidx][0]
+        self.partid = self.pairs[self.pairidx][1]
+        self.qid = self.data['identity'][self.index]
 
         # initial visualization 
         self.show_query()
-        self.random_gallery()
+        self.show_gallery()
+
+    def slot_viewer(self):
+        '''
+            A dialog for viewing the labeling result
+        '''
+        self.viewer  = QDialog()
+        self.viewer.show()
 
     def slot_exit(self):
         '''
-            save and exit
+            Quit the application
         '''
-        f = open(self.save_path, 'wb')
-        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
-        f.close()
-        QApplication.quit()
+        msg = QMessageBox.question(None, 'Exit', 'Quit the application?', QMessageBox.Yes, QMessageBox.No)
+        if msg == QMessageBox.Yes:
+            QApplication.quit()
 
     def slot_reset(self):
         '''
             Reset all previous labels of salience score to 0 
         '''
-        for i in range(len(self.qfiles)):
-            score0 = self.data['scores'][i]
-            for p in score0.keys():
-                score0[p][0] = 0
-                score0[p][1] = 0
-
-        msg = QMessageBox()
-        msg.setWindowTitle('Message!')
-        msg.setText("All previous label has been reset.");
-        msg.exec_()
+        msg = QMessageBox.question(None, 'Reset', 'Reset all previous labels?', QMessageBox.Yes, QMessageBox.No)
+        if msg == QMessageBox.Yes:
+            for i in range(len(self.qfiles)):
+                score0 = self.data['scores'][i]
+                for p in score0.keys():
+                    score0[p][0] = 0
+                    score0[p][1] = 0
 
 def main():
 
