@@ -11,16 +11,13 @@
 import os
 import sys
 import glob
-import slic
 import numpy as np
-from qimage2ndarray import *
 import cPickle
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import * 
-from PyQt4 import QtCore, QtGui
+from PySide.QtGui import *
+from PySide.QtCore import * 
+from PySide import QtCore, QtGui
 from skimage.transform import resize
-#from scipy.mics import imresize
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -42,6 +39,53 @@ def imresize(im, shape, interp='bicubic'):
     '''
     if interp is 'bicubic':
         return (resize(im, shape, order=4)*255).astype(np.uint8)
+
+def rgb_view(qimage):
+    '''
+    Convert QImage into a numpy array
+    '''
+    qimage = qimage.convertToFormat(QtGui.QImage.Format.Format_RGB32)
+
+    w = qimage.width()
+    h = qimage.height()
+
+    ptr = qimage.constBits()
+    arr = np.array(ptr).reshape(h, w, 4)
+    arr = arr[...,:3]
+    arr = arr[:, :, [2, 1, 0]]
+    return arr
+
+def array2qimage(rgb):
+    """Convert the 3D np array `rgb` into a 32-bit QImage.  `rgb` must
+    have three dimensions with the vertical, horizontal and RGB image axes.
+
+    ATTENTION: This QImage carries an attribute `ndimage` with a
+    reference to the underlying np array that holds the data. On
+    Windows, the conversion into a QPixmap does not copy the data, so
+    that you have to take care that the QImage does not get garbage
+    collected (otherwise PyQt will throw away the wrapper, effectively
+    freeing the underlying memory - boom!)."""
+    if len(rgb.shape) != 3:
+        raise ValueError("rgb2QImage can only convert 3D arrays")
+    if rgb.shape[2] not in (3, 4):
+        raise ValueError("rgb2QImage can expects the last dimension to contain exactly three (R,G,B) or four (R,G,B,A) channels")
+
+    h, w, channels = rgb.shape
+
+    # Qt expects 32bit BGRA data for color images:
+    bgra = np.empty((h, w, 4), np.uint8, 'C')
+    bgra[...,0] = rgb[...,2]
+    bgra[...,1] = rgb[...,1]
+    bgra[...,2] = rgb[...,0]
+    if rgb.shape[2] == 3:
+        bgra[...,3].fill(255)
+    else:
+        bgra[...,3] = rgb[...,3]
+
+    fmt = QImage.Format_ARGB32
+    result = QImage(bgra.data, w, h, fmt)
+    result.ndarray = bgra
+    return result
 
 class CLabel(QLabel):
 
@@ -73,7 +117,7 @@ class Ui_MainWindow(object):
         self.widget.setGeometry(QtCore.QRect(20, 70, 110, 611))
         self.widget.setObjectName(_fromUtf8("widget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.widget)
-        self.verticalLayout.setMargin(0)
+        #self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.pushButton = []
         for i in range(5):
@@ -87,7 +131,7 @@ class Ui_MainWindow(object):
         #self.widget1.setGeometry(QtCore.QRect(500, 30, 651, 721))
         self.widget1.setObjectName(_fromUtf8("widget1"))
         self.gridLayout_2 = QtGui.QGridLayout(self.widget1)
-        self.gridLayout_2.setMargin(0)
+        #self.gridLayout_2.setMargin(0)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.labelset = []
         for i in range(4):
@@ -247,7 +291,7 @@ class Ui_MainWindow(object):
         idx = self.data['labels'][self.index] != self.partid
         for i in range(3):
             draw0[:, :, i][idx] = 255
-
+            
         qimage = array2qimage(draw0)
         qpixmap = QPixmap.fromImage(qimage)
         self.label.setPixmap(qpixmap.scaled(self.label.size(), Qt.KeepAspectRatio))          
