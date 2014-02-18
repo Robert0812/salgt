@@ -152,15 +152,15 @@ class Ui_MainWindow(object):
 
         else:
             # no previous annotation available
+            self.index = 0
+            self.query = QPixmap(self.qfiles[self.index])
+
             self.data = {}
             self.data['index'] = self.index
             self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
             self.data['scores'] = [[] for i in range(len(self.qfiles))]
             self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
-            
-            self.index = 0
-            self.query = QPixmap(self.qfiles[self.index])
 
             # compute the initial label map given self.query
             for i in range(self.npyr):
