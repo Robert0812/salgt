@@ -104,6 +104,53 @@ class CLabel(QLabel):
         self.emit(SIGNAL('clicked()'))
         event.accept()
 
+class viewer(QtGui.QWidget):
+
+    def __init__(self, imfiles):
+        super(viewer, self).__init__()
+
+        self.imfiles = imfiles
+        self.initWin()
+
+    def initWin(self):
+
+        self.setGeometry(QtCore.QRect(1085, 10, 270, 420))
+        self.centralwidget = QtGui.QWidget(self)
+        self.imlabel = QLabel(self.centralwidget)
+        self.imlabel.setGeometry(QtCore.QRect(70, 30, 120, 320))
+
+        self.widget1 = QtGui.QWidget(self.centralwidget)
+        self.widget1.setGeometry(QtCore.QRect(10, 330, 250, 100))
+        self.horizontalLayout = QtGui.QHBoxLayout(self.widget1)
+        self.btn_prev = QPushButton(self.widget1)
+        self.btn_next = QPushButton(self.widget1)
+        self.btn_prev.setText('Prev')
+        self.btn_next.setText('Next')
+        self.horizontalLayout.addWidget(self.btn_prev)
+        self.horizontalLayout.addWidget(self.btn_next)
+
+        QtCore.QObject.connect(self.btn_next, QtCore.SIGNAL("clicked()"), self.slot_next)
+        QtCore.QObject.connect(self.btn_prev, QtCore.SIGNAL("clicked()"), self.slot_prev)
+
+        self.index = 0
+        qimage = QPixmap(self.imfiles[self.index])
+        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        self.setWindowTitle('Image Viewer')
+        self.show()
+
+
+    def slot_prev(self):
+
+        self.index = max(self.index - 1, 0)
+        qimage = QPixmap(self.imfiles[self.index])
+        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+
+    def slot_next(self):
+
+        self.index = min(self.index + 1, len(self.imfiles))
+        qimage = QPixmap(self.imfiles[self.index])
+        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -306,25 +353,6 @@ class Ui_MainWindow(object):
         self.show_query()
         self.show_gallery()
 
-    #def random_query(self): #X
-
-        # randomly sample image index and part index
-    #    self.index = np.random.randint(0, len(self.qfiles))
-    #    self.query = QPixmap(self.qfiles[self.index])
-            
-        # initialize labeled data {label0, auxlabel}
-    #    self.label0 = self.data['labels'][self.index]
-    #    self.score0 = self.data['scores'][self.index]
-    #    self.qid = self.data['identity'][self.index]
-
-    #    rnd_idx = np.random.randint(0, len(self.score0.keys()))
-    #    self.partid = self.score0.keys()[rnd_idx]
-
-    #def random_part(self):
-
-    #    rnd_idx = np.random.randint(0, len(self.score0.keys()))
-    #    self.partid = self.score0.keys()[rnd_idx]
-
     def show_query(self):
         '''
             show query image with only one visible part for labeling
@@ -343,13 +371,6 @@ class Ui_MainWindow(object):
         self.label.setPixmap(qpixmap.scaled(self.label.size(), Qt.KeepAspectRatio))          
 
     def show_gallery(self):
-        #newDialog = QDialog();
-        #fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../data')
-        #fpath = '../data/gallery'
-        #self.gFiles = sorted(glob.glob(str(fpath) + '/*.bmp'))
-        #self.gNames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gFiles)
-
-        #qid = self.gnames.index(self.qNames[self.index])
         
         idx_match = self.gnames.index(self.qnames[self.index])
         idx_mismatch = np.setdiff1d(range(len(self.gfiles)), [idx_match])
@@ -360,7 +381,6 @@ class Ui_MainWindow(object):
         for i in range(len(self.labelset)):
             image = QPixmap(self.gfiles[idx[i]])
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
-            #print self.labelset[i].size()
 
         self.flags = np.zeros(len(self.labelset))
 
@@ -429,8 +449,8 @@ class Ui_MainWindow(object):
         '''
             A dialog for viewing the labeling result
         '''
-        self.viewer  = QDialog()
-        self.viewer.show()
+        self.viewer = viewer(self.qfiles)    
+
 
     def slot_exit(self):
         '''
@@ -451,6 +471,8 @@ class Ui_MainWindow(object):
                 for p in score0.keys():
                     score0[p][0] = 0
                     score0[p][1] = 0
+
+
 
 def main():
 
