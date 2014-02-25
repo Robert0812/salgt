@@ -196,16 +196,21 @@ class Ui_MainWindow(object):
             QApplication.quit()
 
         # randomly sample image index and part index
-        self.pairidx = 0 # index of image-part pair 
-        seed = 1
-        self.random_list(seed)
-        self.index = self.pairs[0][0]
-        self.partid = self.pairs[0][1]
-        self.qid = self.data['identity'][self.index]
+        #self.pairidx = 0 # index of image-part pair 
+        #seed = 1
+        #self.random_list(seed)
+        #self.index = self.pairs[0][0]
+        #self.partid = self.pairs[0][1]
+        #self.qid = self.data['identity'][self.index]
 
         # initial visualization 
-        self.show_query()
-        self.show_gallery()
+        #self.show_query()
+        #self.show_gallery()
+
+        image = QPixmap('../data/temp.jpg')
+        self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
+        for i in range(len(self.labelset)):
+            self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
 
 
     def retranslateUi(self, MainWindow):
@@ -227,13 +232,28 @@ class Ui_MainWindow(object):
             Ask the user to regist a tag for their labeling task 
         '''
         text, result = QtGui.QInputDialog.getText(None, "Labeling Registration",
-                                            "Please regist your last name in lower case, thanks!")
+                                            "Labeler last name:")
         if len(text) is 0:
-            return 
+            return
+        seed, result = QtGui.QInputDialog.getInt(None, "Labeling Registration",
+                                            "Assigned random seed:")
+        if result is False:
+            return
 
-        self.labeltag = text + gen_tag()
+        self.labeltag = '%s#%02d' % (text, seed)
         self.labeler.setText(self.labeltag)
         self.labeler.setDisabled(True)
+
+        self.pairidx = 0 # index of image-part pair 
+        self.seed = seed
+        self.random_list(seed)
+        self.index = self.pairs[0][0]
+        self.partid = self.pairs[0][1]
+        self.qid = self.data['identity'][self.index]
+
+        # initial visualization 
+        self.show_query()
+        self.show_gallery()
 
     def random_list(self, seed):
         '''
