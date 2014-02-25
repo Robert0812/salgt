@@ -19,6 +19,9 @@ from PySide.QtCore import *
 from PySide import QtCore, QtGui
 from skimage.transform import resize
 
+import string 
+import random 
+
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except AttributeError:
@@ -33,6 +36,9 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
+def gen_tag(size=6, chars = string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
+
 def imresize(im, shape, interp='bicubic'):
     '''
         replacement of scipy imresize
@@ -44,7 +50,7 @@ def rgb_view(qimage):
     '''
     Convert QImage into a numpy array
     '''
-    qimage = qimage.convertToFormat(QtGui.QImage.Format.Format_RGB32)
+    qimage = qimage.convertToFormat(QtGui.QImage.Format_RGB32)
 
     w = qimage.width()
     h = qimage.height()
@@ -114,11 +120,17 @@ class Ui_MainWindow(object):
         self.label.setObjectName(_fromUtf8("label"))
         
         self.widget = QtGui.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(20, 70, 110, 611))
+        self.widget.setGeometry(QtCore.QRect(20, 70, 130, 611))
         self.widget.setObjectName(_fromUtf8("widget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.widget)
         #self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
+        # add a name tag for each labeler's work
+        self.labeler = QPushButton(self.widget)
+        self.verticalLayout.addWidget(self.labeler)
+        self.labeler.setText('@Regist')
+        self.labeltag = gen_tag()
+
         self.pushButton = []
         for i in range(5):
             button = QPushButton(self.widget)
@@ -149,6 +161,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
+        QtCore.QObject.connect(self.labeler, QtCore.SIGNAL("clicked()"), self.slot_regist)
         QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
         QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_viewer)
@@ -208,6 +221,15 @@ class Ui_MainWindow(object):
             for j in range(8):
                 self.labelset[i*8+j].setText(_translate("MainWindow", "Image{}".format(i*8+j+1), None))
 
+
+    def slot_regist(self):
+        '''
+            Ask the user to regist a tag for their labeling task 
+        '''
+        text, result = QtGui.QInputDialog.getText(None, "Labeling Registration",
+                                            "Please regist your last name in lower case, thanks!")
+        self.labeltag = text + gen_tag()
+        self.labeler.setText(self.labeltag)
 
     def random_list(self, seed):
         '''
