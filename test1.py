@@ -228,8 +228,12 @@ class Ui_MainWindow(object):
         '''
         text, result = QtGui.QInputDialog.getText(None, "Labeling Registration",
                                             "Please regist your last name in lower case, thanks!")
+        if len(text) is 0:
+            return 
+
         self.labeltag = text + gen_tag()
         self.labeler.setText(self.labeltag)
+        self.labeler.setDisabled(True)
 
     def random_list(self, seed):
         '''
