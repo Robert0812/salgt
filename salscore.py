@@ -274,18 +274,6 @@ class Ui_MainWindow(object):
             print 'Label data does not exist!'
             QApplication.quit()
 
-        # randomly sample image index and part index
-        #self.pairidx = 0 # index of image-part pair 
-        #seed = 1
-        #self.random_list(seed)
-        #self.index = self.pairs[0][0]
-        #self.partid = self.pairs[0][1]
-        #self.qid = self.data['identity'][self.index]
-
-        # initial visualization 
-        #self.show_query()
-        #self.show_gallery()
-
         image = QPixmap('../data/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
@@ -455,10 +443,6 @@ class Ui_MainWindow(object):
             re-random query and gallery for a new round of annotation
         '''
         # save current labeling
-        #if self.flags.sum():
-            #print self.flags.sum()
-            # record current label
-            # 1./self.flags.sum() represents confidence of correct match
         select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
         #print select_ids
         if self.qid in select_ids:
