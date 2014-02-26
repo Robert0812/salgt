@@ -106,21 +106,22 @@ class CLabel(QLabel):
 
 class viewer(QtGui.QWidget):
 
-    def __init__(self, imfiles):
+    def __init__(self, imfiles, labeldata):
         super(viewer, self).__init__()
 
         self.imfiles = imfiles
+        self.data = labeldata
         self.initWin()
 
     def initWin(self):
 
-        self.setGeometry(QtCore.QRect(1085, 10, 270, 420))
+        self.setGeometry(QtCore.QRect(1085, 10, 400, 820))
         self.centralwidget = QtGui.QWidget(self)
         self.imlabel = QLabel(self.centralwidget)
-        self.imlabel.setGeometry(QtCore.QRect(70, 30, 120, 320))
+        self.imlabel.setGeometry(QtCore.QRect(65, 30, 270, 720))
 
         self.widget1 = QtGui.QWidget(self.centralwidget)
-        self.widget1.setGeometry(QtCore.QRect(10, 330, 250, 100))
+        self.widget1.setGeometry(QtCore.QRect(10, 730, 380, 100))
         self.horizontalLayout = QtGui.QHBoxLayout(self.widget1)
         self.btn_prev = QPushButton(self.widget1)
         self.btn_next = QPushButton(self.widget1)
@@ -133,8 +134,9 @@ class viewer(QtGui.QWidget):
         QtCore.QObject.connect(self.btn_prev, QtCore.SIGNAL("clicked()"), self.slot_prev)
 
         self.index = 0
-        qimage = QPixmap(self.imfiles[self.index])
-        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        #qimage = QPixmap(self.imfiles[self.index])
+        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        self.show_qpixmap(self.index, self.imlabel)
         self.setWindowTitle('Image Viewer')
         self.show()
 
@@ -142,14 +144,36 @@ class viewer(QtGui.QWidget):
     def slot_prev(self):
 
         self.index = max(self.index - 1, 0)
-        qimage = QPixmap(self.imfiles[self.index])
-        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        #qimage = QPixmap(self.imfiles[self.index])
+        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        self.show_qpixmap(self.index, self.imlabel)
 
     def slot_next(self):
 
         self.index = min(self.index + 1, len(self.imfiles))
-        qimage = QPixmap(self.imfiles[self.index])
-        self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
+        self.show_qpixmap(self.index, self.imlabel)
+
+    def show_qpixmap(self, fidx, qlabel):
+        '''
+            show a QPixmap to a QLabel 
+        '''
+        qpixmap = QPixmap(self.imfiles[fidx])
+        qimage = qpixmap.toImage()
+        imgarr = rgb_view(qimage)
+        draw0 = imresize(imgarr, (qlabel.height(), qlabel.width()), interp='bicubic')
+
+        for partid in self.data['scores'][fidx].keys():
+            idx = self.data['labels'][fidx] != partid
+            diclabel = self.data['scores'][fidx][partid]
+            for i in range(1, 3):
+                draw0[:, :, i][idx] = np.round(diclabel[0]/(1+diclabel[1])*255.).astype(np.uint8)
+        #for i in range(3):
+        #    draw0[:, :, i][idx] = 255
+            
+        qimage = array2qimage(draw0)
+        qpixmap_new = QPixmap.fromImage(qimage)
+        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio))          
 
 
 class Ui_MainWindow(object):
@@ -159,11 +183,11 @@ class Ui_MainWindow(object):
         self.h = 720 #self.label[0].size().height()
 
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(1080, 794)
+        MainWindow.resize(1080, 820)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.label = QLabel(self.centralwidget)
-        self.label.setGeometry(QtCore.QRect(150, 30, self.w, self.h))
+        self.label.setGeometry(QtCore.QRect(170, 30, self.w, self.h))
         self.label.setObjectName(_fromUtf8("label"))
         
         self.widget = QtGui.QWidget(self.centralwidget)
@@ -371,7 +395,10 @@ class Ui_MainWindow(object):
         self.label.setPixmap(qpixmap.scaled(self.label.size(), Qt.KeepAspectRatio))          
 
     def show_gallery(self):
-        
+        '''
+            show gallery images
+        '''
+
         idx_match = self.gnames.index(self.qnames[self.index])
         idx_mismatch = np.setdiff1d(range(len(self.gfiles)), [idx_match])
         idx = np.append(idx_mismatch[0:len(self.labelset)-1], idx_match)
@@ -385,8 +412,9 @@ class Ui_MainWindow(object):
         self.flags = np.zeros(len(self.labelset))
 
     def slot_click(self, index):
-        
-        # once clicked, draw rectangle around the selected gallery image
+        '''
+            once clicked, draw rectangle around the selected gallery image
+        '''
         gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
         draw = rgb_view(gimage)
 
@@ -426,11 +454,12 @@ class Ui_MainWindow(object):
             select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
             #print select_ids
             if self.qid in select_ids:
-                self.score0[self.partid][0] += 1./self.flags.sum()
+                self.data['scores'][self.index][self.partid][0] += 1./self.flags.sum()
             # record number of annotation rounds 
-            self.score0[self.partid][1] += 1
+            self.data['scores'][self.index][self.partid][1] += 1
 
-            print 'part score {} (labeled {} times)'.format(self.score0[self.partid][0], self.score0[self.partid][1])
+            print 'part score {} (labeled {} times)'.format(self.data['scores'][self.index][self.partid][0], 
+                self.data['scores'][self.index][self.partid][1])
 
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
@@ -449,7 +478,7 @@ class Ui_MainWindow(object):
         '''
             A dialog for viewing the labeling result
         '''
-        self.viewer = viewer(self.qfiles)    
+        self.viewer = viewer(self.qfiles, self.data)    
 
 
     def slot_exit(self):
