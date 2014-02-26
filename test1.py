@@ -115,7 +115,7 @@ class viewer(QtGui.QWidget):
 
     def initWin(self):
 
-        self.setGeometry(QtCore.QRect(1085, 10, 400, 820))
+        self.setGeometry(QtCore.QRect(1095, 10, 400, 820))
         self.centralwidget = QtGui.QWidget(self)
         self.imlabel = QLabel(self.centralwidget)
         self.imlabel.setGeometry(QtCore.QRect(65, 30, 270, 720))
@@ -142,14 +142,14 @@ class viewer(QtGui.QWidget):
 
 
     def slot_prev(self):
-
+        ''' previous button '''
         self.index = max(self.index - 1, 0)
         #qimage = QPixmap(self.imfiles[self.index])
         #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
         self.show_qpixmap(self.index, self.imlabel)
 
     def slot_next(self):
-
+        ''' next button '''
         self.index = min(self.index + 1, len(self.imfiles))
         #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
         self.show_qpixmap(self.index, self.imlabel)
@@ -163,17 +163,23 @@ class viewer(QtGui.QWidget):
         imgarr = rgb_view(qimage)
         draw0 = imresize(imgarr, (qlabel.height(), qlabel.width()), interp='bicubic')
 
+        draw1 = self.customized_function(draw0, fidx)
+         
+        qimage = array2qimage(draw1)
+        qpixmap_new = QPixmap.fromImage(qimage)
+        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio))      
+
+    def customized_function(self, draw0, fidx):
+        '''
+            customized function for processing the image data 
+        '''
         for partid in self.data['scores'][fidx].keys():
             idx = self.data['labels'][fidx] != partid
             diclabel = self.data['scores'][fidx][partid]
-            for i in range(1, 3):
+            for i in range(2, 3):
                 draw0[:, :, i][idx] = np.round(diclabel[0]/(1+diclabel[1])*255.).astype(np.uint8)
-        #for i in range(3):
-        #    draw0[:, :, i][idx] = 255
-            
-        qimage = array2qimage(draw0)
-        qpixmap_new = QPixmap.fromImage(qimage)
-        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio))          
+
+        return draw0    
 
 
 class Ui_MainWindow(object):
@@ -183,7 +189,7 @@ class Ui_MainWindow(object):
         self.h = 720 #self.label[0].size().height()
 
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(1080, 820)
+        MainWindow.setGeometry(QtCore.QRect(10, 10, 1080, 820)) #resize(1080, 820)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.label = QLabel(self.centralwidget)
@@ -203,7 +209,7 @@ class Ui_MainWindow(object):
         self.labeltag = gen_tag()
 
         self.pushButton = []
-        for i in range(5):
+        for i in range(4):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
@@ -233,11 +239,13 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QObject.connect(self.labeler, QtCore.SIGNAL("clicked()"), self.slot_regist)
-        QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
-        QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
-        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_viewer)
-        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
-        QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        #QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
+        QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
+        QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_cheat)
+        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
+        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+
+        self.pushButton[1].setDisabled(True)
 
         for i in range(len(self.labelset)):
             QObject.connect(self.labelset[i], SIGNAL('clicked()'), lambda idx = i: self.slot_click(idx))
@@ -287,11 +295,11 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "Saliency Score Annotation", None))
         self.label.setText(_translate("MainWindow", "TextLabel", None))
-        self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Save && Next", None))
-        self.pushButton[2].setText(_translate("MainWindow", "Open Viewer", None))
-        self.pushButton[3].setText(_translate("MainWindow", "Exit", None))
-        self.pushButton[4].setText(_translate("MainWindow", "Reset ALL", None))
+        #self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
+        self.pushButton[0].setText(_translate("MainWindow", "Save && Next", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Cheat", None))
+        self.pushButton[2].setText(_translate("MainWindow", "Exit", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Reset ALL", None))
 
         for i in range(4):
             for j in range(8):
@@ -447,19 +455,21 @@ class Ui_MainWindow(object):
             re-random query and gallery for a new round of annotation
         '''
         # save current labeling
-        if self.flags.sum():
+        #if self.flags.sum():
             #print self.flags.sum()
             # record current label
             # 1./self.flags.sum() represents confidence of correct match
-            select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
-            #print select_ids
-            if self.qid in select_ids:
-                self.data['scores'][self.index][self.partid][0] += 1./self.flags.sum()
-            # record number of annotation rounds 
-            self.data['scores'][self.index][self.partid][1] += 1
+        select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
+        #print select_ids
+        if self.qid in select_ids:
+            self.data['scores'][self.index][self.partid][0] += 1./self.flags.sum() if self.flags.sum() else 0
+        # record number of annotation rounds 
+        self.data['scores'][self.index][self.partid][1] += 1
 
-            print 'part score {} (labeled {} times)'.format(self.data['scores'][self.index][self.partid][0], 
-                self.data['scores'][self.index][self.partid][1])
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) score {4:.2f}'.format(self.pairidx, len(self.pairs), 
+            self.index, self.partid,
+            self.data['scores'][self.index][self.partid][0]) 
+            #self.data['scores'][self.index][self.partid][1])
 
         f = open(self.save_path, 'wb')
         cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
@@ -473,6 +483,25 @@ class Ui_MainWindow(object):
         # initial visualization 
         self.show_query()
         self.show_gallery()
+
+
+    def slot_cheat(self):
+        '''
+            A dialog for checking the groundtruth image of query
+        '''
+        self.cheatUI = QWidget()
+        self.cheatUI.setWindowTitle('Groundtruth')
+        self.cheatUI.setGeometry(QtCore.QRect(1090, 10, 300, 740))
+        qlabel = QLabel(self.cheatUI)
+        qlabel.setGeometry(QtCore.QRect(10, 10, 270, 720))
+        qpixmap = QPixmap(self.qfiles[self.index])
+        qimage = qpixmap.toImage()
+        imgarr = rgb_view(qimage)
+        draw0 = imresize(imgarr, (qlabel.height(), qlabel.width()), interp='bicubic')         
+        qimage = array2qimage(draw0)
+        qpixmap_new = QPixmap.fromImage(qimage)
+        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio)) 
+        self.cheatUI.show()
 
     def slot_viewer(self):
         '''
@@ -489,6 +518,7 @@ class Ui_MainWindow(object):
         if msg == QMessageBox.Yes:
             QApplication.quit()
 
+
     def slot_reset(self):
         '''
             Reset all previous labels of salience score to 0 
@@ -501,6 +531,13 @@ class Ui_MainWindow(object):
                     score0[p][0] = 0
                     score0[p][1] = 0
 
+
+        image = QPixmap('../data/temp.jpg')
+        self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
+        for i in range(len(self.labelset)):
+            self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
+        self.labeler.setText('@Regist')
+        self.labeler.setDisabled(False)
 
 
 def main():
