@@ -260,19 +260,21 @@ class Ui_MainWindow(object):
         self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
         
-
-        self.save_path = self.data_path + 'parts.pkl'
-        print self.save_path
-        if os.path.isfile(self.save_path):
+        # load source parts
+        self.src_path = self.data_path + 'parts.pkl'
+        if os.path.isfile(self.src_path):
             # labeled data exists
 
-            f = open(self.save_path, 'rb')
+            f = open(self.src_path, 'rb')
             self.data = cPickle.load(f)
             f.close()
             
         else:
             print 'Label data does not exist!'
             QApplication.quit()
+
+        # initial save path
+        self.save_path = None
 
         image = QPixmap('../data/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
@@ -307,16 +309,17 @@ class Ui_MainWindow(object):
         if result is False:
             return
 
-        self.labeltag = '%s#%02d' % (text, seed)
-        self.labeler.setText(self.labeltag)
-        self.labeler.setDisabled(True)
-
         self.pairidx = 0 # index of image-part pair 
         self.seed = seed
         self.random_list(seed)
         self.index = self.pairs[0][0]
         self.partid = self.pairs[0][1]
         self.qid = self.data['identity'][self.index]
+
+        self.labeltag = '%s#%02d' % (text, seed)
+        self.save_path = self.data_path + self.labeltag + '.pkl'
+        self.labeler.setText(self.labeltag+':'+str(len(self.pairs) - self.pairidx))
+        self.labeler.setDisabled(True)
 
         # initial visualization 
         self.show_query()
@@ -333,45 +336,6 @@ class Ui_MainWindow(object):
 
         np.random.seed(seed)
         np.random.shuffle(self.pairs)
-
-
-    def slot_load(self):
-        newDialog = QDialog();
-        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../')
-        
-        if fpath is None:
-            return
-
-        self.data_path = str(fpath) + '/'
-        self.qfiles = sorted(glob.glob(self.data_path + 'data/query/*.bmp'))
-        self.gfiles = sorted(glob.glob(self.data_path + 'data/gallery/*.bmp'))
-        self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
-        self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
-        
-        self.save_path = self.data_path + 'parts.pkl'
-        
-        if os.path.isfile(self.save_path):
-            # labeled data exists
-
-            f = open(self.save_path, 'rb')
-            self.data = cPickle.load(f)
-            f.close()
-            
-        else:
-            print 'Label data does not exist!'
-            QApplication.quit()
-
-        # randomly sample image index and part index
-        self.pairidx = 0 # index of image-part pair 
-        seed = 1
-        self.random_list(seed)
-        self.index = self.pairs[0][0]
-        self.partid = self.pairs[0][1]
-        self.qid = self.data['identity'][self.index]
-
-        # initial visualization 
-        self.show_query()
-        self.show_gallery()
 
     def show_query(self):
         '''
@@ -442,6 +406,11 @@ class Ui_MainWindow(object):
         '''
             re-random query and gallery for a new round of annotation
         '''
+
+        if self.save_path is None:
+            msg = QMessageBox.warning(None, 'Warning', 'Regist first!', QMessageBox.Ok)
+            return 
+
         # save current labeling
         select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
         #print select_ids
@@ -463,8 +432,11 @@ class Ui_MainWindow(object):
         self.index = self.pairs[self.pairidx][0]
         self.partid = self.pairs[self.pairidx][1]
         self.qid = self.data['identity'][self.index]
+ 
+        
 
-        # initial visualization 
+        # visualization 
+        self.labeler.setText(self.labeltag + ':' + str(len(self.pairs) -self.pairidx))
         self.show_query()
         self.show_gallery()
 
