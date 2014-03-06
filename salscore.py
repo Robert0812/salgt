@@ -150,7 +150,7 @@ class viewer(QtGui.QWidget):
 
     def slot_next(self):
         ''' next button '''
-        self.index = min(self.index + 1, len(self.imfiles))
+        self.index = min(self.index + 1, len(self.imfiles)-1)
         #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
         self.show_qpixmap(self.index, self.imlabel)
 
@@ -205,11 +205,11 @@ class Ui_MainWindow(object):
         # add a name tag for each labeler's work
         self.labeler = QPushButton(self.widget)
         self.verticalLayout.addWidget(self.labeler)
-        self.labeler.setText('@Regist')
+        self.labeler.setText('@Login')
         self.labeltag = gen_tag()
 
         self.pushButton = []
-        for i in range(4):
+        for i in range(5):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
@@ -241,11 +241,12 @@ class Ui_MainWindow(object):
         QtCore.QObject.connect(self.labeler, QtCore.SIGNAL("clicked()"), self.slot_regist)
         #QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
         QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
-        QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_cheat)
-        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
-        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_prev)
+        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_cheat)
+        QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
+        QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
-        self.pushButton[1].setDisabled(True)
+        self.pushButton[2].setDisabled(True)
 
         for i in range(len(self.labelset)):
             QObject.connect(self.labelset[i], SIGNAL('clicked()'), lambda idx = i: self.slot_click(idx))
@@ -261,7 +262,7 @@ class Ui_MainWindow(object):
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
         
         # load source parts
-        self.src_path = self.data_path + 'parts.pkl'
+        self.src_path = self.data_path + 'parts_new.pkl'
         if os.path.isfile(self.src_path):
             # labeled data exists
 
@@ -287,9 +288,10 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "TextLabel", None))
         #self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
         self.pushButton[0].setText(_translate("MainWindow", "Save && Next", None))
-        self.pushButton[1].setText(_translate("MainWindow", "Cheat", None))
-        self.pushButton[2].setText(_translate("MainWindow", "Exit", None))
-        self.pushButton[3].setText(_translate("MainWindow", "Reset ALL", None))
+        self.pushButton[1].setText(_translate("MainWindow", "Save && Prev", None))
+        self.pushButton[2].setText(_translate("MainWindow", "Cheat", None))
+        self.pushButton[3].setText(_translate("MainWindow", "Exit", None))
+        self.pushButton[4].setText(_translate("MainWindow", "Reset ALL", None))
 
         for i in range(4):
             for j in range(8):
@@ -309,16 +311,27 @@ class Ui_MainWindow(object):
         if result is False:
             return
 
-        self.pairidx = 0 # index of image-part pair 
-        self.seed = seed
-        self.random_list(seed)
-        self.index = self.pairs[0][0]
-        self.partid = self.pairs[0][1]
-        self.qid = self.data['identity'][self.index]
-
         self.labeltag = '%s#%02d' % (text, seed)
         self.save_path = self.data_path + self.labeltag + '.pkl'
-        self.labeler.setText(self.labeltag+':'+str(len(self.pairs) - self.pairidx))
+        self.userdata = {}
+        self.userdata['pairidx'] = 0
+        self.userdata['scores'] = self.data['scores']
+        self.userdata['sflags'] = self.data['sflags']
+
+        if os.path.isfile(self.save_path):
+            # labeled data exists
+            f = open(self.save_path, 'rb')
+            self.userdata = cPickle.load(f)
+            f.close()
+
+        self.pairidx = self.userdata['pairidx'] # index of image-part pair 
+        self.seed = seed
+        self.random_list(seed)
+        self.index = self.pairs[self.pairidx][0]
+        self.partid = self.pairs[self.pairidx][1]
+        self.qid = self.data['identity'][self.index]
+
+        self.labeler.setText(self.labeltag+':'+str(self.pairidx))
         self.labeler.setDisabled(True)
 
         # initial visualization 
@@ -362,6 +375,7 @@ class Ui_MainWindow(object):
         idx_match = self.gnames.index(self.qnames[self.index])
         idx_mismatch = np.setdiff1d(range(len(self.gfiles)), [idx_match])
         idx = np.append(idx_mismatch[0:len(self.labelset)-1], idx_match)
+        np.random.seed(self.seed + self.pairidx)
         np.random.shuffle(idx)
 
         self.gidx = idx
@@ -369,7 +383,35 @@ class Ui_MainWindow(object):
             image = QPixmap(self.gfiles[idx[i]])
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
 
-        self.flags = np.zeros(len(self.labelset))
+        if self.data['sflags'][self.index][self.partid] is None:
+            self.flags = np.zeros(len(self.labelset))
+        else:
+            self.flags = self.userdata['sflags'][self.index][self.partid]
+            for i in range(len(self.labelset)):
+                if self.flags[i] == 1:
+                    self.draw_rect(i)
+
+
+    def draw_rect(self, index):
+
+        gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
+        draw = rgb_view(gimage)
+        w = gimage.size().width()
+        h = gimage.size().height()
+        xx = np.tile(np.asarray(range(w)), (h, 1))
+        yy = np.tile(np.asarray(range(h)), (w, 1)).transpose()
+            
+        idx_x = (xx < 3) + (xx > (w -3))
+        idx_y = (yy < 3) + (yy > (h -3))
+
+        draw[:, :, 0][idx_x + idx_y] = 255
+        draw[:, :, 1][idx_x + idx_y] = 0
+        draw[:, :, 2][idx_x + idx_y] = 0
+
+        qimage = array2qimage(draw)
+        qpixmap = QPixmap.fromImage(qimage)
+        self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
+
 
     def slot_click(self, index):
         '''
@@ -402,6 +444,48 @@ class Ui_MainWindow(object):
         qpixmap = QPixmap.fromImage(qimage)
         self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
         
+
+    def save_label(self):
+
+        # save labeled flags 
+        self.userdata['sflags'][self.index][self.partid] = self.flags
+        # save salience scores
+        select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
+        if self.qid in select_ids:
+            self.userdata['scores'][self.index][self.partid] = 1./self.flags.sum() if self.flags.sum() else 0
+        # print score
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) score {4:.2f}'.format(self.pairidx, len(self.pairs), 
+            self.index, self.partid,
+            self.userdata['scores'][self.index][self.partid]) 
+
+    def slot_prev(self):
+        '''
+            re-random query and gallery for a new round of annotation
+        '''
+
+        if self.save_path is None:
+            msg = QMessageBox.warning(None, 'Warning', 'Regist first!', QMessageBox.Ok)
+            return 
+
+        self.save_label()
+
+        self.userdata['pairidx'] = max(self.pairidx - 1, 0)
+
+        self.pairidx = max(self.pairidx-1, 0)
+        self.index = self.pairs[self.pairidx][0]
+        self.partid = self.pairs[self.pairidx][1]
+        self.qid = self.data['identity'][self.index]
+
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
+ 
+        # visualization 
+        self.labeler.setText(self.labeltag + ':' + str(self.pairidx))
+        self.show_query()
+        self.show_gallery()
+
+
     def slot_next(self):
         '''
             re-random query and gallery for a new round of annotation
@@ -411,32 +495,21 @@ class Ui_MainWindow(object):
             msg = QMessageBox.warning(None, 'Warning', 'Regist first!', QMessageBox.Ok)
             return 
 
-        # save current labeling
-        select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
-        #print select_ids
-        if self.qid in select_ids:
-            self.data['scores'][self.index][self.partid][0] += 1./self.flags.sum() if self.flags.sum() else 0
-        # record number of annotation rounds 
-        self.data['scores'][self.index][self.partid][1] += 1
+        self.save_label()
 
-        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) score {4:.2f}'.format(self.pairidx, len(self.pairs), 
-            self.index, self.partid,
-            self.data['scores'][self.index][self.partid][0]) 
-            #self.data['scores'][self.index][self.partid][1])
+        self.userdata['pairidx'] = min(self.pairidx + 1, len(self.pairs)-1)
 
-        f = open(self.save_path, 'wb')
-        cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)
-        f.close()
-
-        self.pairidx += 1
+        self.pairidx = min(self.pairidx+1, len(self.pairs)-1)
         self.index = self.pairs[self.pairidx][0]
         self.partid = self.pairs[self.pairidx][1]
         self.qid = self.data['identity'][self.index]
- 
-        
 
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
+ 
         # visualization 
-        self.labeler.setText(self.labeltag + ':' + str(len(self.pairs) -self.pairidx))
+        self.labeler.setText(self.labeltag + ':' + str(self.pairidx))
         self.show_query()
         self.show_gallery()
 
@@ -458,6 +531,7 @@ class Ui_MainWindow(object):
         qpixmap_new = QPixmap.fromImage(qimage)
         qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio)) 
         self.cheatUI.show()
+
 
     def slot_viewer(self):
         '''
@@ -482,17 +556,22 @@ class Ui_MainWindow(object):
         msg = QMessageBox.question(None, 'Reset', 'Reset all previous labels?', QMessageBox.Yes, QMessageBox.No)
         if msg == QMessageBox.Yes:
             for i in range(len(self.qfiles)):
-                score0 = self.data['scores'][i]
+                score0 = self.userdata['scores'][i]
                 for p in score0.keys():
-                    score0[p][0] = 0
-                    score0[p][1] = 0
+                    score0[p] = 0
+                    self.userdata['sflags'][i][p] = np.zeros(len(self.labelset))    
 
+        self.userdata['pairidx'] = 0
+
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
 
         image = QPixmap('../data/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
-        self.labeler.setText('@Regist')
+        self.labeler.setText('@Login')
         self.labeler.setDisabled(False)
 
 
