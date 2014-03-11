@@ -374,9 +374,9 @@ class Ui_MainWindow(object):
 
         idx_match = self.gnames.index(self.qnames[self.index])
         idx_mismatch = np.setdiff1d(range(len(self.gfiles)), [idx_match])
-        idx = np.append(idx_mismatch[0:len(self.labelset)-1], idx_match)
         np.random.seed(self.seed + self.pairidx)
-        np.random.shuffle(idx)
+        np.random.shuffle(idx_mismatch)
+        idx = np.append(idx_mismatch[0:len(self.labelset)-1], idx_match)
 
         self.gidx = idx
         for i in range(len(self.labelset)):
