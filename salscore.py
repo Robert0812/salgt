@@ -209,7 +209,7 @@ class Ui_MainWindow(object):
         self.labeltag = gen_tag()
 
         self.pushButton = []
-        for i in range(5):
+        for i in range(4):
             button = QPushButton(self.widget)
             button.setObjectName('pushButton_{}'.format(i))
             self.pushButton.append(button)
@@ -242,11 +242,14 @@ class Ui_MainWindow(object):
         #QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_load)
         QtCore.QObject.connect(self.pushButton[0], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_next)
         QtCore.QObject.connect(self.pushButton[1], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_prev)
-        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_cheat)
+        QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_unlock)
+        #QtCore.QObject.connect(self.pushButton[2], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_cheat)
         QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
-        QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
+        #QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
-        self.pushButton[2].setDisabled(True)
+        self.pushButton[2].setText('Edit:off')
+        self.edit = False
+        #self.pushButton[4].setDisabled(True)
 
         for i in range(len(self.labelset)):
             QObject.connect(self.labelset[i], SIGNAL('clicked()'), lambda idx = i: self.slot_click(idx))
@@ -289,9 +292,10 @@ class Ui_MainWindow(object):
         #self.pushButton[0].setText(_translate("MainWindow", "Load Path", None))
         self.pushButton[0].setText(_translate("MainWindow", "Save && Next", None))
         self.pushButton[1].setText(_translate("MainWindow", "Save && Prev", None))
-        self.pushButton[2].setText(_translate("MainWindow", "Cheat", None))
+        self.pushButton[2].setText(_translate("MainWindow", "Unlock", None))
+        #self.pushButton[2].setText(_translate("MainWindow", "Cheat", None))
         self.pushButton[3].setText(_translate("MainWindow", "Exit", None))
-        self.pushButton[4].setText(_translate("MainWindow", "Reset ALL", None))
+        #self.pushButton[4].setText(_translate("MainWindow", "Reset ALL", None))
 
         for i in range(4):
             for j in range(8):
@@ -318,6 +322,7 @@ class Ui_MainWindow(object):
         self.userdata['pairidx'] = 0
         self.userdata['scores'] = self.data['scores']
         self.userdata['sflags'] = self.data['sflags']
+        self.userdata['marks'] = np.zeros(len(self.qfiles))
 
         if os.path.isfile(self.save_path):
             # labeled data exists
@@ -339,6 +344,7 @@ class Ui_MainWindow(object):
         self.show_query()
         self.show_gallery()
 
+
     def random_list(self, seed):
         '''
             Generate a random list of image-part pairs that covering all images and all parts
@@ -350,6 +356,7 @@ class Ui_MainWindow(object):
 
         np.random.seed(seed)
         np.random.shuffle(self.pairs)
+
 
     def show_query(self):
         '''
@@ -367,6 +374,7 @@ class Ui_MainWindow(object):
         qimage = array2qimage(draw0)
         qpixmap = QPixmap.fromImage(qimage)
         self.label.setPixmap(qpixmap.scaled(self.label.size(), Qt.KeepAspectRatio))          
+
 
     def show_gallery(self):
         '''
@@ -386,16 +394,25 @@ class Ui_MainWindow(object):
             image = QPixmap(self.gfiles[idx[i]])
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
 
-        if self.data['sflags'][self.index][self.partid] is None:
+        if self.userdata['sflags'][self.index][self.partid] is None:
             self.flags = np.zeros(len(self.labelset))
         else:
             self.flags = self.userdata['sflags'][self.index][self.partid]
             for i in range(len(self.labelset)):
                 if self.flags[i] == 1:
-                    self.draw_rect(i)
+                    self.draw_rect(i, 'red')
+                elif self.flags[i] == 2:
+                    self.draw_rect(i, 'green')
 
 
-    def draw_rect(self, index):
+    def draw_rect(self, index, color):
+
+        if color is 'red':
+            r = 255
+            g = 0
+        elif color is 'green':
+            r = 0
+            g = 255
 
         gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
         draw = rgb_view(gimage)
@@ -407,8 +424,8 @@ class Ui_MainWindow(object):
         idx_x = (xx < 3) + (xx > (w -3))
         idx_y = (yy < 3) + (yy > (h -3))
 
-        draw[:, :, 0][idx_x + idx_y] = 255
-        draw[:, :, 1][idx_x + idx_y] = 0
+        draw[:, :, 0][idx_x + idx_y] = r
+        draw[:, :, 1][idx_x + idx_y] = g
         draw[:, :, 2][idx_x + idx_y] = 0
 
         qimage = array2qimage(draw)
@@ -416,14 +433,33 @@ class Ui_MainWindow(object):
         self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
 
 
+    def slot_unlock(self):
+        # unlock a query to be able to cancel selections
+        self.edit = not self.edit
+
+        if self.edit:
+            self.pushButton[2].setText('Edit:off')
+        else:
+            self.pushButton[2].setText('Edit:on')
+
+
     def slot_click(self, index):
         '''
             once clicked, draw rectangle around the selected gallery image
         '''
-        gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
-        draw = rgb_view(gimage)
 
-        if self.flags[index] == 0:
+        if self.userdata['marks'][self.index] == 1 and not self.edit:
+            # if is not in edit mode and the current query is marked labeled. 
+            return
+
+        elif self.flags[index] == 0:
+            # if current gallery image is not selected 
+
+            correct = self.gidx[index] == self.gnames.index(self.qnames[self.index])
+            self.userdata['marks'][self.index] = correct
+
+            gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
+            draw = rgb_view(gimage)
 
             w = gimage.size().width()
             h = gimage.size().height()
@@ -433,33 +469,41 @@ class Ui_MainWindow(object):
             idx_x = (xx < 3) + (xx > (w -3))
             idx_y = (yy < 3) + (yy > (h -3))
 
-            draw[:, :, 0][idx_x + idx_y] = 255
-            draw[:, :, 1][idx_x + idx_y] = 0
+            draw[:, :, 0][idx_x + idx_y] = 255*(not correct)
+            draw[:, :, 1][idx_x + idx_y] = 255*correct
             draw[:, :, 2][idx_x + idx_y] = 0
 
-            self.flags[index] = 1
-        
-        else:
-            self.flags[index] = 0
+            self.flags[index] = 1 + correct
 
+            qimage = array2qimage(draw)
+            qpixmap = QPixmap.fromImage(qimage)
+            self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
 
-        qimage = array2qimage(draw)
-        qpixmap = QPixmap.fromImage(qimage)
-        self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
-        
+        elif self.edit:
+            # in edit mode: user is allowed to cancel selections
+
+            # if gt is cancelled, reset the marks of current query to False
+            if self.flags[index] == 2:
+                self.userdata['marks'][self.index] = False
+
+            # show original image without rectangle in border
+            qpixmap = QPixmap(self.gfiles[self.gidx[index]]).toImage()
+            self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
+
 
     def save_label(self):
 
         # save labeled flags 
         self.userdata['sflags'][self.index][self.partid] = self.flags
         # save salience scores
-        select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
-        if self.qid in select_ids:
-            self.userdata['scores'][self.index][self.partid] = 1./self.flags.sum() if self.flags.sum() else 0
-        # print score
-        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) score {4:.2f}'.format(self.pairidx, len(self.pairs), 
-            self.index, self.partid,
-            self.userdata['scores'][self.index][self.partid]) 
+        self.userdata['scores'][self.index][self.partid] = self.flags.sum() - 1 if self.flags.sum() else 0
+        #select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
+        #if self.qid in select_ids:
+        #    self.userdata['scores'][self.index][self.partid] = 1./self.flags.sum() if self.flags.sum() else 0
+
+        f = open(self.save_path, 'wb')
+        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
 
     def slot_prev(self):
         '''
@@ -470,19 +514,20 @@ class Ui_MainWindow(object):
             msg = QMessageBox.warning(None, 'Warning', 'Regist first!', QMessageBox.Ok)
             return 
 
+        self.userdata['pairidx'] = max(self.pairidx - 1, 0)
         self.save_label()
 
-        self.userdata['pairidx'] = max(self.pairidx - 1, 0)
+        # print score
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs), 
+            self.index, self.partid,
+            self.userdata['scores'][self.index][self.partid]) 
 
+        # prepare for the previous round
         self.pairidx = max(self.pairidx-1, 0)
         self.index = self.pairs[self.pairidx][0]
         self.partid = self.pairs[self.pairidx][1]
         self.qid = self.data['identity'][self.index]
 
-        f = open(self.save_path, 'wb')
-        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
-        f.close()
- 
         # visualization 
         self.labeler.setText(self.labeltag + ':' + str(self.pairidx))
         self.show_query()
@@ -498,18 +543,19 @@ class Ui_MainWindow(object):
             msg = QMessageBox.warning(None, 'Warning', 'Regist first!', QMessageBox.Ok)
             return 
 
+        self.userdata['pairidx'] = min(self.pairidx + 1, len(self.pairs)-1)
         self.save_label()
 
-        self.userdata['pairidx'] = min(self.pairidx + 1, len(self.pairs)-1)
+        # print score
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs), 
+            self.index, self.partid,
+            self.userdata['scores'][self.index][self.partid]) 
 
+        # prepare for the next round
         self.pairidx = min(self.pairidx+1, len(self.pairs)-1)
         self.index = self.pairs[self.pairidx][0]
         self.partid = self.pairs[self.pairidx][1]
         self.qid = self.data['identity'][self.index]
-
-        f = open(self.save_path, 'wb')
-        cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
-        f.close()
  
         # visualization 
         self.labeler.setText(self.labeltag + ':' + str(self.pairidx))
