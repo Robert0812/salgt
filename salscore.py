@@ -247,7 +247,7 @@ class Ui_MainWindow(object):
         QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
         #QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
-        self.pushButton[2].setText('Edit:off')
+        self.pushButton[2].setText('Edit mode[off]')
         self.edit = False
         #self.pushButton[4].setDisabled(True)
 
@@ -428,6 +428,9 @@ class Ui_MainWindow(object):
         draw[:, :, 1][idx_x + idx_y] = g
         draw[:, :, 2][idx_x + idx_y] = 0
 
+        if color is 'red':
+            draw[:, :, 0] = 255
+
         qimage = array2qimage(draw)
         qpixmap = QPixmap.fromImage(qimage)
         self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
@@ -435,12 +438,13 @@ class Ui_MainWindow(object):
 
     def slot_unlock(self):
         # unlock a query to be able to cancel selections
-        self.edit = not self.edit
 
         if self.edit:
-            self.pushButton[2].setText('Edit:off')
+            self.pushButton[2].setText('Edit mode[off]')
+            self.edit = False
         else:
-            self.pushButton[2].setText('Edit:on')
+            self.pushButton[2].setText('Edit mode[on]')
+            self.edit = True
 
 
     def slot_click(self, index):
@@ -456,7 +460,8 @@ class Ui_MainWindow(object):
             # if current gallery image is not selected 
 
             correct = self.gidx[index] == self.gnames.index(self.qnames[self.index])
-            self.userdata['marks'][self.index] = correct
+            if correct:
+                self.userdata['marks'][self.index] = True 
 
             gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
             draw = rgb_view(gimage)
@@ -468,10 +473,14 @@ class Ui_MainWindow(object):
             
             idx_x = (xx < 3) + (xx > (w -3))
             idx_y = (yy < 3) + (yy > (h -3))
+            idx_xy = idx_x + idx_y
 
-            draw[:, :, 0][idx_x + idx_y] = 255*(not correct)
-            draw[:, :, 1][idx_x + idx_y] = 255*correct
-            draw[:, :, 2][idx_x + idx_y] = 0
+            draw[:, :, 0][idx_xy] = 255*(not correct)
+            draw[:, :, 1][idx_xy] = 255*correct
+            draw[:, :, 2][idx_xy] = 0
+
+            if not correct:
+                draw[:, :, 0] = 255
 
             self.flags[index] = 1 + correct
 
@@ -486,8 +495,12 @@ class Ui_MainWindow(object):
             if self.flags[index] == 2:
                 self.userdata['marks'][self.index] = False
 
+            self.flags[index] = 0
             # show original image without rectangle in border
-            qpixmap = QPixmap(self.gfiles[self.gidx[index]]).toImage()
+            gimage = QPixmap(self.gfiles[self.gidx[index]]).toImage()
+            draw = rgb_view(gimage)
+            qimage = array2qimage(draw)
+            qpixmap = QPixmap.fromImage(qimage)
             self.labelset[index].setPixmap(qpixmap.scaled(self.labelset[index].size(), Qt.KeepAspectRatio))
 
 
@@ -497,6 +510,10 @@ class Ui_MainWindow(object):
         self.userdata['sflags'][self.index][self.partid] = self.flags
         # save salience scores
         self.userdata['scores'][self.index][self.partid] = self.flags.sum() - 1 if self.flags.sum() else 0
+        # if selections don't include gt, then score is 0
+        if self.userdata['marks'][self.index] == 0:
+            self.userdata['scores'][self.index][self.partid] = 0
+        
         #select_ids = [self.gnames[idx] for idx in self.gidx[self.flags.astype(bool)]]
         #if self.qid in select_ids:
         #    self.userdata['scores'][self.index][self.partid] = 1./self.flags.sum() if self.flags.sum() else 0
