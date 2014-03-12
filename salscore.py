@@ -254,10 +254,10 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # default initialization
-        self.data_path = '../' # default path
+        self.data_path = '../data/' # default path
 
-        self.qfiles = sorted(glob.glob(self.data_path + 'data/query/*.bmp'))
-        self.gfiles = sorted(glob.glob(self.data_path + 'data/gallery/*.bmp'))
+        self.qfiles = sorted(glob.glob(self.data_path + 'query/*.bmp'))
+        self.gfiles = sorted(glob.glob(self.data_path + 'gallery/*.bmp'))
         self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
         self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
         
@@ -302,16 +302,17 @@ class Ui_MainWindow(object):
         '''
             Ask the user to regist a tag for their labeling task 
         '''
-        text, result = QtGui.QInputDialog.getText(None, "Labeling Registration",
-                                            "Labeler last name:")
-        if len(text) is 0:
-            return
+        
         seed, result = QtGui.QInputDialog.getInt(None, "Labeling Registration",
                                             "Assigned random seed:")
         if result is False:
             return
-
-        self.labeltag = '%s#%02d' % (text, seed)
+        text, result = QtGui.QInputDialog.getText(None, "Labeling Registration",
+                                            "Labeler last name:")
+        if len(text) is 0:
+            return
+        
+        self.labeltag = '#%02d_%s' % (seed, text)
         self.save_path = self.data_path + self.labeltag + '.pkl'
         self.userdata = {}
         self.userdata['pairidx'] = 0
@@ -377,6 +378,8 @@ class Ui_MainWindow(object):
         np.random.seed(self.seed + self.pairidx)
         np.random.shuffle(idx_mismatch)
         idx = np.append(idx_mismatch[0:len(self.labelset)-1], idx_match)
+        np.random.seed(self.seed + self.pairidx)
+        np.random.shuffle(idx)
 
         self.gidx = idx
         for i in range(len(self.labelset)):
