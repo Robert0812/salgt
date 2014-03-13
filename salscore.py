@@ -104,84 +104,6 @@ class CLabel(QLabel):
         self.emit(SIGNAL('clicked()'))
         event.accept()
 
-class viewer(QtGui.QWidget):
-
-    def __init__(self, imfiles, labeldata):
-        super(viewer, self).__init__()
-
-        self.imfiles = imfiles
-        self.data = labeldata
-        self.initWin()
-
-    def initWin(self):
-
-        self.setGeometry(QtCore.QRect(1095, 10, 400, 820))
-        self.centralwidget = QtGui.QWidget(self)
-        self.imlabel = QLabel(self.centralwidget)
-        self.imlabel.setGeometry(QtCore.QRect(65, 30, 270, 720))
-
-        self.widget1 = QtGui.QWidget(self.centralwidget)
-        self.widget1.setGeometry(QtCore.QRect(10, 730, 380, 100))
-        self.horizontalLayout = QtGui.QHBoxLayout(self.widget1)
-        self.btn_prev = QPushButton(self.widget1)
-        self.btn_next = QPushButton(self.widget1)
-        self.btn_prev.setText('Prev')
-        self.btn_next.setText('Next')
-        self.horizontalLayout.addWidget(self.btn_prev)
-        self.horizontalLayout.addWidget(self.btn_next)
-
-        QtCore.QObject.connect(self.btn_next, QtCore.SIGNAL("clicked()"), self.slot_next)
-        QtCore.QObject.connect(self.btn_prev, QtCore.SIGNAL("clicked()"), self.slot_prev)
-
-        self.index = 0
-        #qimage = QPixmap(self.imfiles[self.index])
-        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
-        self.show_qpixmap(self.index, self.imlabel)
-        self.setWindowTitle('Image Viewer')
-        self.show()
-
-
-    def slot_prev(self):
-        ''' previous button '''
-        self.index = max(self.index - 1, 0)
-        #qimage = QPixmap(self.imfiles[self.index])
-        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
-        self.show_qpixmap(self.index, self.imlabel)
-
-    def slot_next(self):
-        ''' next button '''
-        self.index = min(self.index + 1, len(self.imfiles)-1)
-        #self.imlabel.setPixmap(qimage.scaled(self.imlabel.size(), Qt.KeepAspectRatio))
-        self.show_qpixmap(self.index, self.imlabel)
-
-    def show_qpixmap(self, fidx, qlabel):
-        '''
-            show a QPixmap to a QLabel 
-        '''
-        qpixmap = QPixmap(self.imfiles[fidx])
-        qimage = qpixmap.toImage()
-        imgarr = rgb_view(qimage)
-        draw0 = imresize(imgarr, (qlabel.height(), qlabel.width()), interp='bicubic')
-
-        draw1 = self.customized_function(draw0, fidx)
-         
-        qimage = array2qimage(draw1)
-        qpixmap_new = QPixmap.fromImage(qimage)
-        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio))      
-
-    def customized_function(self, draw0, fidx):
-        '''
-            customized function for processing the image data 
-        '''
-        for partid in self.data['scores'][fidx].keys():
-            idx = self.data['labels'][fidx] != partid
-            diclabel = self.data['scores'][fidx][partid]
-            for i in range(2, 3):
-                draw0[:, :, i][idx] = np.round(diclabel[0]/(1+diclabel[1])*255.).astype(np.uint8)
-
-        return draw0    
-
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
 
@@ -578,26 +500,6 @@ class Ui_MainWindow(object):
         self.labeler.setText(self.labeltag + ':' + str(self.pairidx))
         self.show_query()
         self.show_gallery()
-
-
-    def slot_cheat(self):
-        '''
-            A dialog for checking the groundtruth image of query
-        '''
-        self.cheatUI = QWidget()
-        self.cheatUI.setWindowTitle('Groundtruth')
-        self.cheatUI.setGeometry(QtCore.QRect(1090, 10, 300, 740))
-        qlabel = QLabel(self.cheatUI)
-        qlabel.setGeometry(QtCore.QRect(10, 10, 270, 720))
-        qpixmap = QPixmap(self.qfiles[self.index])
-        qimage = qpixmap.toImage()
-        imgarr = rgb_view(qimage)
-        draw0 = imresize(imgarr, (qlabel.height(), qlabel.width()), interp='bicubic')         
-        qimage = array2qimage(draw0)
-        qpixmap_new = QPixmap.fromImage(qimage)
-        qlabel.setPixmap(qpixmap_new.scaled(qlabel.size(), Qt.KeepAspectRatio)) 
-        self.cheatUI.show()
-
 
     def slot_viewer(self):
         '''
