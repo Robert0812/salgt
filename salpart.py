@@ -14,12 +14,11 @@ import glob
 import slic
 import numpy as np
 from scipy.misc import imresize
-from qimage2ndarray import *
 import cPickle
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import * 
-from PyQt4 import QtCore, QtGui
+from PySide.QtGui import *
+from PySide.QtCore import * 
+from PySide import QtCore, QtGui
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -34,6 +33,53 @@ try:
 except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
+
+def rgb_view(qimage):
+    '''
+    Convert QImage into a numpy array
+    '''
+    qimage = qimage.convertToFormat(QtGui.QImage.Format_RGB32)
+
+    w = qimage.width()
+    h = qimage.height()
+
+    ptr = qimage.constBits()
+    arr = np.array(ptr).reshape(h, w, 4)
+    arr = arr[...,:3]
+    arr = arr[:, :, [2, 1, 0]]
+    return arr
+
+def array2qimage(rgb):
+    """Convert the 3D np array `rgb` into a 32-bit QImage.  `rgb` must
+    have three dimensions with the vertical, horizontal and RGB image axes.
+
+    ATTENTION: This QImage carries an attribute `ndimage` with a
+    reference to the underlying np array that holds the data. On
+    Windows, the conversion into a QPixmap does not copy the data, so
+    that you have to take care that the QImage does not get garbage
+    collected (otherwise PyQt will throw away the wrapper, effectively
+    freeing the underlying memory - boom!)."""
+    if len(rgb.shape) != 3:
+        raise ValueError("rgb2QImage can only convert 3D arrays")
+    if rgb.shape[2] not in (3, 4):
+        raise ValueError("rgb2QImage can expects the last dimension to contain exactly three (R,G,B) or four (R,G,B,A) channels")
+
+    h, w, channels = rgb.shape
+
+    # Qt expects 32bit BGRA data for color images:
+    bgra = np.empty((h, w, 4), np.uint8, 'C')
+    bgra[...,0] = rgb[...,2]
+    bgra[...,1] = rgb[...,1]
+    bgra[...,2] = rgb[...,0]
+    if rgb.shape[2] == 3:
+        bgra[...,3].fill(255)
+    else:
+        bgra[...,3] = rgb[...,3]
+
+    fmt = QImage.Format_ARGB32
+    result = QImage(bgra.data, w, h, fmt)
+    result.ndarray = bgra
+    return result
 
 class CLabel(QLabel):
 
@@ -68,7 +114,7 @@ class Ui_MainWindow(object):
         self.widget.setGeometry(QtCore.QRect(20, 70, 110, 611))
         self.widget.setObjectName(_fromUtf8("widget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.widget)
-        self.verticalLayout.setMargin(0)
+        # self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.pushButton = []
         for i in range(7):
@@ -81,7 +127,7 @@ class Ui_MainWindow(object):
         self.widget.move(150, 20)
         self.widget.setObjectName(_fromUtf8("widget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.widget)
-        self.horizontalLayout.setMargin(0)
+        # self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.label = []
         for i in range(2):
@@ -159,7 +205,7 @@ class Ui_MainWindow(object):
             self.data['index'] = self.index
             self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
             self.data['scores'] = [[] for i in range(len(self.qfiles))]
-            self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
+            self.data['identity'] = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
 
             # compute the initial label map given self.query
@@ -188,20 +234,21 @@ class Ui_MainWindow(object):
     def slot_load(self):
 
         newDialog = QDialog()
-        fpath = QFileDialog.getExistingDirectory(newDialog, "Select Directory", '../')
+        fpath = QFileDialog.getExistingDirectory(newDialog, "Select data directory", '../')
         
         if len(fpath) == 0:
             QMessageBox.warning(None, 'Warning!', 'Nothing loaded.')
             return
 
         self.data_path = str(fpath) + '/' # loaded path
-        self.qfiles = sorted(glob.glob(self.data_path+'data/query/*.bmp'))
+        self.qfiles = sorted(glob.glob(self.data_path+'query/*.bmp'))
         
         self.npyr = len(self.label)
         self.mergeSegs = [[] for i in range(self.npyr)]
 
         # load label data
         self.save_path = self.data_path + 'parts.pkl'
+        print self.qfiles
         
         if os.path.isfile(self.save_path):
             # labeled data exists
@@ -226,8 +273,9 @@ class Ui_MainWindow(object):
             self.data['index'] = self.index
             self.data['labels'] = [np.zeros((self.h, self.w), dtype=np.int32) for i in range(len(self.qfiles))]
             self.data['scores'] = [[] for i in range(len(self.qfiles))]
-            self.data['identity'] = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
+            self.data['identity'] = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
+            self.data['sflags'] = [[] for i in range(len(self.qfiles))]
             
             self.index = 0
             self.query = QPixmap(self.qfiles[self.index])
@@ -391,7 +439,8 @@ class Ui_MainWindow(object):
         '''
         # save finished label
         if len(self.mergeSegs[0]):
-            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], [0, 0])
+            self.data['scores'][self.index] = dict.fromkeys(self.mergeSegs[0], 0)
+            self.data['sflags'][self.index] = dict.fromkeys(self.mergeSegs[0], None)
 
             f = open(self.save_path, 'wb')
             cPickle.dump(self.data, f, cPickle.HIGHEST_PROTOCOL)

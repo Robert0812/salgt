@@ -179,15 +179,15 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # default initialization
-        self.data_path = '../data/' # default path
+        self.data_path = '../data_test/' # default path
 
         self.qfiles = sorted(glob.glob(self.data_path + 'query/*.bmp'))
         self.gfiles = sorted(glob.glob(self.data_path + 'gallery/*.bmp'))
-        self.qnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.qfiles)
-        self.gnames = map(lambda x: os.path.basename(x[0:x.find('_')]), self.gfiles)
+        self.qnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
+        self.gnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.gfiles)
         
         # load source parts
-        self.src_path = self.data_path + 'parts_new.pkl'
+        self.src_path = self.data_path + 'parts.pkl'
         if os.path.isfile(self.src_path):
             # labeled data exists
 
@@ -457,7 +457,7 @@ class Ui_MainWindow(object):
         self.save_label()
 
         # print score
-        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs), 
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs)-1, 
             self.index, self.partid,
             self.userdata['scores'][self.index][self.partid]) 
 
@@ -486,7 +486,7 @@ class Ui_MainWindow(object):
         self.save_label()
 
         # print score
-        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs), 
+        print '[{0:03d}/{1:03d}] image-part ({2:03d}-{3:03d}) selection {4:.2f}'.format(self.pairidx, len(self.pairs)-1, 
             self.index, self.partid,
             self.userdata['scores'][self.index][self.partid]) 
 
