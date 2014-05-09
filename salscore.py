@@ -169,8 +169,8 @@ class Ui_MainWindow(object):
         QtCore.QObject.connect(self.pushButton[3], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_exit)
         #QtCore.QObject.connect(self.pushButton[4], QtCore.SIGNAL(_fromUtf8("clicked()")), self.slot_reset)
 
-        self.pushButton[2].setText('Edit mode[off]')
-        self.edit = False
+        self.pushButton[2].setText('Edit mode[on]')
+        self.edit = True
         #self.pushButton[4].setDisabled(True)
 
         for i in range(len(self.labelset)):
@@ -179,7 +179,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # default initialization
-        self.data_path = '../data_test/' # default path
+        self.data_path = '../data_viper/' # default path
 
         self.qfiles = sorted(glob.glob(self.data_path + 'query/*.bmp'))
         self.gfiles = sorted(glob.glob(self.data_path + 'gallery/*.bmp'))
@@ -202,7 +202,7 @@ class Ui_MainWindow(object):
         # initial save path
         self.save_path = None
 
-        image = QPixmap('../data/temp.jpg')
+        image = QPixmap('../data_viper/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
@@ -373,7 +373,6 @@ class Ui_MainWindow(object):
         '''
             once clicked, draw rectangle around the selected gallery image
         '''
-
         if self.userdata['marks'][self.index] == 1 and not self.edit:
             # if is not in edit mode and the current query is marked labeled. 
             return
@@ -535,7 +534,7 @@ class Ui_MainWindow(object):
         cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-        image = QPixmap('../data/temp.jpg')
+        image = QPixmap('../data_viper/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))

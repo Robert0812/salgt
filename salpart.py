@@ -103,7 +103,7 @@ class Ui_MainWindow(object):
         self.h = 720 #self.label[0].size().height()
 
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(3*self.w +180, self.h+80)
+        MainWindow.resize(3*self.w +180, self.h+90)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         #self.label = CLabel(self.centralwidget)
@@ -169,8 +169,8 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # load default files
-        self.data_path = '../' # default path
-        self.qfiles = sorted(glob.glob(self.data_path+'data/query/*.bmp'))
+        self.data_path = '../data_cuhk/' # default path
+        self.qfiles = sorted(glob.glob(self.data_path+'query/*'))
 
         
         self.npyr = len(self.label)
@@ -207,6 +207,7 @@ class Ui_MainWindow(object):
             self.data['scores'] = [[] for i in range(len(self.qfiles))]
             self.data['identity'] = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
             self.data['flags'] = np.zeros(len(self.qfiles))
+            self.data['sflags'] = [[] for i in range(len(self.qfiles))]
 
             # compute the initial label map given self.query
             for i in range(self.npyr):
@@ -241,7 +242,7 @@ class Ui_MainWindow(object):
             return
 
         self.data_path = str(fpath) + '/' # loaded path
-        self.qfiles = sorted(glob.glob(self.data_path+'query/*.bmp'))
+        self.qfiles = sorted(glob.glob(self.data_path+'query/*'))
         
         self.npyr = len(self.label)
         self.mergeSegs = [[] for i in range(self.npyr)]
