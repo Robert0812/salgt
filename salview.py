@@ -10,7 +10,7 @@ from glob import glob
 
 # from PySide.QtGui import *
 # from PySide.QtCore import * 
-from sals.utils.utils import visualize_imfolder
+from sals.utils.utils import *
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -53,19 +53,26 @@ def print_labeling(data_path = None):
 	imsz = im.shape[0:2]
 	msk0 = np.zeros(srcdata['labels'][0].shape)
 
+	segmsks = []
 	salmsks = []
 	for i in range(len(qfiles)):
 		im = imread(qfiles[i])
-		msk = msk0.copy()
+		seg = msk0.copy()
+		sal = msk0.copy()
 		for k in usrhits[0][i].keys():
 			idx = srcdata['labels'][i] == k
 			nhits = np.asarray([nhit[i][k] for nhit in usrhits])
-			msk[idx] = hit2score(nhits)
-		salmsks.append(msk)
+			sal[idx] = hit2score(nhits)
+			seg[idx] = k
+		salmsks.append(sal)
+		segmsks.append(seg)
 
 	# normalize all msk 
 	# scaler = MinMaxScaler()
 	# salscores = scaler.fit_transform(np.asarray(salmsks))
+
+	# save label and salience score map
+	savefile([segmsks, salmsks], data_path + 'labels.pkl')
 
 	for i in range(len(qfiles)):
 		im = imread(qfiles[i])
@@ -82,7 +89,6 @@ def print_labeling(data_path = None):
 		print save_path +'{0:03d}.jpg'.format(i) + ' saved!'
 
 	visualize_imfolder(save_path)
-
 
 if __name__== '__main__':
 
