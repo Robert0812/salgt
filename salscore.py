@@ -179,12 +179,17 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # default initialization
-        self.data_path = '../data_viper/' # default path
+        self.data_path = '../data_cuhk/' # default path
 
-        self.qfiles = sorted(glob.glob(self.data_path + 'query/*.bmp'))
-        self.gfiles = sorted(glob.glob(self.data_path + 'gallery/*.bmp'))
-        self.qnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
-        self.gnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.gfiles)
+        self.qfiles = sorted(glob.glob(self.data_path + 'query/*'))
+        self.gfiles = sorted(glob.glob(self.data_path + 'gallery/*'))
+
+        if self.data_path.find('viper') >= 0:
+            self.qnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.qfiles)
+            self.gnames = map(lambda x: os.path.basename(x)[0:os.path.basename(x).find('_')], self.gfiles)
+        else:
+            self.qnames = map(lambda x: os.path.basename(x)[0:4], self.qfiles)
+            self.gnames = map(lambda x: os.path.basename(x)[0:4], self.gfiles)
         
         # load source parts
         self.src_path = self.data_path + 'parts.pkl'
@@ -202,7 +207,7 @@ class Ui_MainWindow(object):
         # initial save path
         self.save_path = None
 
-        image = QPixmap('../data_viper/temp.jpg')
+        image = QPixmap('../data_cuhk/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
@@ -392,16 +397,16 @@ class Ui_MainWindow(object):
             xx = np.tile(np.asarray(range(w)), (h, 1))
             yy = np.tile(np.asarray(range(h)), (w, 1)).transpose()
             
-            idx_x = (xx < 3) + (xx > (w -3))
-            idx_y = (yy < 3) + (yy > (h -3))
+            idx_x = (xx < 5) + (xx > (w -5))
+            idx_y = (yy < 5) + (yy > (h -5))
             idx_xy = idx_x + idx_y
 
             draw[:, :, 0][idx_xy] = 255*(not correct)
             draw[:, :, 1][idx_xy] = 255*correct
             draw[:, :, 2][idx_xy] = 0
 
-            if not correct:
-                draw[:, :, 0] = 255
+            # if not correct:
+            #     draw[:, :, 0] = 255
 
             self.flags[index] = 1 + correct
 
@@ -534,7 +539,7 @@ class Ui_MainWindow(object):
         cPickle.dump(self.userdata, f, cPickle.HIGHEST_PROTOCOL)
         f.close()
 
-        image = QPixmap('../data_viper/temp.jpg')
+        image = QPixmap('../data_cuhk/temp.jpg')
         self.label.setPixmap(image.scaled(self.label.size(), Qt.KeepAspectRatio))   
         for i in range(len(self.labelset)):
             self.labelset[i].setPixmap(image.scaled(self.labelset[i].size(), Qt.KeepAspectRatio))
