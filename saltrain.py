@@ -19,7 +19,7 @@ def main():
 		datapath = '../data/'
 
 	# prepare training data for supervised salience training 
-	datafile_viper = datapath + 'viper_class.pkl'
+	datafile_viper = datapath + 'viper.pkl'
 	if not os.path.isfile(datafile_viper):
 		viper = DataMan_viper_small()
 		viper.make_data()
@@ -28,9 +28,9 @@ def main():
 	viper = loadfile(datafile_viper)
 
 	bs = 100
-	imL = 48
-	nfilter1 = 16
-	filterL = 5
+	imL = 10
+	nfilter1 = 8
+	filterL = 3
 	recfield = 2
 
 	x = T.matrix(name='x', dtype=theano.config.floatX)
@@ -44,19 +44,8 @@ def main():
 				actfun=tanh,
 				tag='_convpool1')
 
-	# outL = np.floor((imL-filterL+1.)/recfield).astype(np.int)
 	outL = np.floor((imL-filterL+1.)/recfield).astype(np.int)
-
-	nfilter2 = 16
-	filterL2 = 3
-	conv2 = ConvPoolLayer(input=conv1.output(), image_shape=(bs, nfilter1, outL, outL), 
-				filter_shape=(nfilter2, nfilter1, filterL2, filterL2), 
-				pool_shape = (recfield, recfield),
-				flatten=True,
-				actfun=tanh,
-				tag='_convpool2')
-
-	outL2 = np.floor((outL-filterL2+1.)/recfield).astype(np.int)
+	# outL = imL-filterL+1
 
 	# nfilter3 = 16
 	# filterL3 = 3
@@ -68,10 +57,10 @@ def main():
 
 	# outL3 = outL2-filterL3+1
 
-	fc3 = FCLayer(input=conv2.output(), n_in=nfilter2*outL2*outL2, n_out=1, actfun=sigmoid, tag='_fc3')
-	params_cmb = conv1.params + conv2.params + fc3.params 
+	fc2 = FCLayer(input=conv1.output(), n_in=nfilter1*outL*outL, n_out=1, actfun=sigmoid, tag='_fc3')
+	params_cmb = conv1.params + fc2.params 
 
-	ypred = fc3.output().flatten()
+	ypred = fc2.output().flatten()
 
 	model = GeneralModel(input=x, data=viper, output=ypred,
 				target=y, params=params_cmb,
@@ -83,7 +72,7 @@ def main():
 	sgd = sgd_optimizer(data=viper,  
 					model=model,
 					batch_size=bs, 
-					learning_rate=0.0001,
+					learning_rate=0.001,
 					learning_rate_decay=0.7,
 					n_epochs=200)
 
