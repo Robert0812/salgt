@@ -29,7 +29,7 @@ def main():
 
 	bs = 100
 	imL = 10
-	nfilter1 = 8
+	nfilter1 = 16
 	filterL = 3
 	recfield = 2
 
@@ -40,8 +40,8 @@ def main():
 	conv1 = ConvPoolLayer(input=layer0, image_shape=(bs, 3, imL, imL), 
 				filter_shape=(nfilter1, 3, filterL, filterL), 
 				pool_shape = (recfield, recfield), 
-				flatten=False,
-				actfun=tanh,
+				flatten=True,
+				actfun=relu,
 				tag='_convpool1')
 
 	outL = np.floor((imL-filterL+1.)/recfield).astype(np.int)
@@ -54,7 +54,7 @@ def main():
 	# 			flatten=True,
 	# 			actfun=tanh,
 	# 			tag='_conv3')
-
+	#
 	# outL3 = outL2-filterL3+1
 
 	fc2 = FCLayer(input=conv1.output(), n_in=nfilter1*outL*outL, n_out=1, actfun=sigmoid, tag='_fc3')
