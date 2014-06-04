@@ -29,7 +29,7 @@ def main():
 
 	bs = 100
 	imL = 10
-	nfilter1 = 16
+	nfilter1 = 32
 	filterL = 3
 	recfield = 2
 
@@ -37,15 +37,14 @@ def main():
 	y = T.vector(name='y', dtype=theano.config.floatX)
 
 	layer0 = x.reshape((bs, 3, imL, imL))
-	conv1 = ConvPoolLayer(input=layer0, image_shape=(bs, 3, imL, imL), 
-				filter_shape=(nfilter1, 3, filterL, filterL), 
-				pool_shape = (recfield, recfield), 
+	conv1 = ConvLayer(input=layer0, image_shape=(bs, 3, imL, imL), 
+				filter_shape=(nfilter1, 3, filterL, filterL),  
 				flatten=True,
-				actfun=relu,
+				actfun=tanh,
 				tag='_convpool1')
 
-	outL = np.floor((imL-filterL+1.)/recfield).astype(np.int)
-	# outL = imL-filterL+1
+	# outL = np.floor((imL-filterL+1.)/recfield).astype(np.int)
+	outL = imL-filterL+1
 
 	# nfilter3 = 16
 	# filterL3 = 3
@@ -57,10 +56,11 @@ def main():
 	#
 	# outL3 = outL2-filterL3+1
 
-	fc2 = FCLayer(input=conv1.output(), n_in=nfilter1*outL*outL, n_out=1, actfun=sigmoid, tag='_fc3')
-	params_cmb = conv1.params + fc2.params 
+	fc2 = FCLayer(input=conv1.output(), n_in=nfilter1*outL*outL, n_out=256, actfun=tanh, tag='_fc2')
+	fc3 = FCLayer(input=fc2.output(), n_in=256, n_out=1, actfun=sigmoid, tag='_fc3')
+	params_cmb = conv1.params + fc2.params + fc3.params 
 
-	ypred = fc2.output().flatten()
+	ypred = fc3.output().flatten()
 
 	model = GeneralModel(input=x, data=viper, output=ypred,
 				target=y, params=params_cmb,
