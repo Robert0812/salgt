@@ -59,18 +59,18 @@ def main():
 		pl.subplot(1, 4, 3) # show knn salience
 		pl.imshow(salmap_knn[i]*255., cmap='hot', vmin=0, vmax=255)
 		pl.title('KNN salience')
-		pl.xlabel('abserr={0:.2f}'.format(abs_error(salmap_knn[i], salmap_gt[i])))
+		pl.xlabel('abserr={0:.2f}'.format(abs_error(salmap_knn[i].flatten(), salmap_gt[i].flatten())))
 		pl.subplot(1, 4, 4) # show CNN prediction salience
 		pl.imshow(salmap_pred[i]*255., cmap='hot', vmin=0, vmax=255)
-		pl.title('LR salience')
-		pl.xlabel('abserr={0:.2f}'.format(abs_error(salmap_pred[i], salmap_gt[i])))
+		pl.title('CNN salience')
+		pl.xlabel('abserr={0:.2f}'.format(abs_error(salmap_pred[i].flatten(), salmap_gt[i].flatten())))
 		pl.savefig(save_path + '{0:03d}.jpg'.format(i))
 		print save_path +'{0:03d}.jpg'.format(i) + ' saved!'
 
 	# quantitative evaluation
 	test_idx = np.unique(test_imids)
 	print 'mean abs error - KNN vs Gt: {0:.2f}'.format(abs_error(salmap_knn[test_idx], salmap_gt[test_idx]))
-	print 'mean abs error - SVR vs Gt: {0:.2f}'.format(abs_error(salmap_pred[test_idx], salmap_gt[test_idx]))
+	print 'mean abs error - CNN vs Gt: {0:.2f}'.format(abs_error(salmap_pred[test_idx], salmap_gt[test_idx]))
 
 	# pl.figure(2)	
 	# test_idx = np.unique(test_imids)
