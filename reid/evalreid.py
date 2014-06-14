@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('agg')
+
 import os
 import numpy as np
 
@@ -36,7 +39,7 @@ def compute_cmc(pwdist):
 		OUTPUT: a vector representing CMC 
 	'''
 	
-	qsize, gsize = pwdists.shape
+	qsize, gsize = pwdist.shape
 	
 	order = np.argsort(pwdist)
 	match = order == np.tile(np.arange(qsize).reshape((qsize, 1)), (1, gsize))
