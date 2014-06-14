@@ -9,6 +9,7 @@ from scipy.spatial.distance import cdist
 import time
 
 from sals.utils.utils import *
+from sals.utils.ImageHelper import mapresize
 
 
 def patchmatch(imfeat1, imfeat2, ny, nx):
@@ -41,11 +42,16 @@ def compute_cmc(pwdist):
 	
 	qsize, gsize = pwdist.shape
 	
-	order = np.argsort(pwdist)
+	order = np.argsort(pwdist, axis=1)
 	match = order == np.tile(np.arange(qsize).reshape((qsize, 1)), (1, gsize))
 	cmc = match.sum(axis=0).cumsum()/float(qsize)
 	return cmc
 	
+def get_mask(segmsks, ny, nx):
+	''' get foreground masks '''
+	return np.asarray([mapresize(msk, size=(ny, nx))>0 for msk in segmsks])
+
+
 def main():
 
 	# load viper dataset
@@ -87,21 +93,24 @@ def main():
 		pwdists = loadfile(patch_match_path)
 
 	# only patch matching
+	fgmsk = get_mask(viper.segmsks, ny, nx)
+
 	sigma = 2.8
 	n_query = feats_query.shape[0]
 	n_gallery = feats_gallery.shape[0]
 	pwdists_pm = np.zeros((n_query, n_gallery))
-	for iq in range(n_query):
+	for iq, msk in zip(range(n_query), fgmsk):
 		for ig in range(n_gallery):
-			pwdists_pm[iq, ig] = np.exp(-(pwdists[iq, ig]**2)/(sigma**2)).sum()
+			sim = np.exp(-(pwdists[iq, ig]**2)/(sigma**2)) 
+			pwdists_pm[iq, ig] = sim[msk].sum()
 
-	cmc = compute_cmc(pwdists_pm)
+	cmc = compute_cmc(-pwdists_pm)
 	import pylab as pl
 
 	pl.plot(cmc)
 	pl.show()
 	pl.savefig('tmp1.jpg')
-	os.system('open tmp1.jpg')
+	os.system('xdg-open tmp1.jpg')
 	# salience matching 
 
 
