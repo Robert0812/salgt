@@ -63,7 +63,7 @@ def get_calibrated_gtsal():
 	gt_hist = np.histogram(gt_arr, bins=nBin_gt, range=(0, 1))[0]/float(len(gt_arr))
 	knn_hist = np.histogram(knn_arr, bins=nBin_knn, range=(0, 1))[0]/float(len(knn_arr))
 	
-	mapping = np.asarray(histmapping(knn_hist, gt_hist))
+	mapping = np.asarray(histmapping(gt_hist, knn_hist))
 
 	pl.figure(1)
 	pl.plot(mapping)
@@ -78,6 +78,8 @@ def get_calibrated_gtsal():
 def main():
 
 	salmap_gt_mapped = get_calibrated_gtsal()
+	gtsal_path = '../../data_viper/salience_gt.pkl'
+	savefile(gtsal_path, salmap_gt_mapped)
 
 	pl.figure(1)
 	pl.imshow(immontage(salmap_gt_mapped, [6, 17]))
